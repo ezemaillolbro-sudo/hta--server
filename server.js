@@ -5,14 +5,13 @@ const fs = require("fs");
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 8080;
 const HOST = "0.0.0.0";
 const FILE_PATH = path.join(__dirname, "file.hta");
 
-// Configuration
 app.disable("x-powered-by");
 
-// Éviter de conserver en cache les réponses de diagnostic
+// Vérifier l'état du serveur et la présence du fichier
 app.get("/health", (req, res) => {
   const fileExists = fs.existsSync(FILE_PATH);
 
@@ -22,11 +21,12 @@ app.get("/health", (req, res) => {
     status: fileExists ? "ok" : "error",
     service: "hta-download-server",
     uptimeSeconds: Math.floor(process.uptime()),
-    fileExists
+    fileExists,
+    port: PORT
   });
 });
 
-// Route de vérification de disponibilité
+// Vérifier que le serveur est prêt
 app.get("/ready", (req, res) => {
   if (!fs.existsSync(FILE_PATH)) {
     return res.status(503).json({
@@ -40,7 +40,7 @@ app.get("/ready", (req, res) => {
   });
 });
 
-// Téléchargement avec gestion centralisée des erreurs
+// Télécharger le fichier
 function downloadFile(req, res, next) {
   fs.stat(FILE_PATH, (err, stats) => {
     if (err || !stats.isFile()) {
@@ -65,7 +65,7 @@ function downloadFile(req, res, next) {
   });
 }
 
-// Conserver les routes existantes
+// Routes existantes
 app.get("/", downloadFile);
 app.get("/check", downloadFile);
 
@@ -76,7 +76,7 @@ app.use((req, res) => {
   });
 });
 
-// Gestion générale des erreurs Express
+// Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error("Server error:", err.message);
 
@@ -89,12 +89,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Démarrage
+// Démarrer le serveur
 const server = app.listen(PORT, HOST, () => {
   console.log(`Server listening on ${HOST}:${PORT}`);
 });
 
-// Arrêt propre du serveur
+// Arrêt propre
 function shutdown(signal) {
   console.log(`${signal} received. Shutting down...`);
 
