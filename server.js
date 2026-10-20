@@ -12,18 +12,10 @@ const SERVICE_NAME = "hta-download-server";
 app.disable("x-powered-by");
 app.disable("etag");
 
-// En-têtes HTTP
-app.use((req, res, next) => {
-  res.set({
-    "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-store"
-  });
-
-  next();
-});
-
 // Vérification de santé
 app.get("/health", (req, res) => {
+  res.set("Cache-Control", "no-store");
+
   res.status(200).json({
     status: "ok",
     service: SERVICE_NAME,
@@ -39,24 +31,70 @@ app.get("/ready", (req, res) => {
   });
 });
 
-// Page d'accueil
+// Page d'accueil HTML
 app.get("/", (req, res) => {
-  res.status(200).json({
-    service: SERVICE_NAME,
-    status: "online",
-    health: "/health",
-    readiness: "/ready"
-  });
+  res.status(200).type("html").send(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dice Online</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #111116;
+      color: #f5f5f7;
+      font-family: Arial, sans-serif;
+    }
+
+    main {
+      width: 100%;
+      max-width: 520px;
+      padding: 36px;
+      border: 1px solid #34343f;
+      border-radius: 16px;
+      background: #1b1b24;
+      text-align: center;
+    }
+
+    h1 { margin-top: 0; }
+
+    p { color: #b9b9c5; }
+
+    .status {
+      margin: 24px 0;
+      color: #63dda0;
+    }
+
+    a { color: #a99bff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Dice Online</h1>
+    <p>Service en ligne</p>
+    <div class="status">● Serveur opérationnel</div>
+    <p>Le serveur répond correctement aux requêtes.</p>
+    <a href="/health">Vérifier le statut du serveur</a>
+  </main>
+</body>
+</html>`);
 });
 
-// Routes inconnues
+// Route inconnue
 app.use((req, res) => {
   res.status(404).json({
     error: "Route not found"
   });
 });
 
-// Gestion centralisée des erreurs
+// Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error("Express error:", err.message);
 
