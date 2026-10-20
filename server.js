@@ -5,13 +5,13 @@ const fs = require("fs");
 
 const app = express();
 
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 const HOST = "0.0.0.0";
 
 const HTML_PATH = path.join(__dirname, "index.html");
 const HTA_PATH = path.join(__dirname, "file.hta");
 
-// Page HTML principale
+// Page d'accueil
 app.get("/", (req, res) => {
   if (!fs.existsSync(HTML_PATH)) {
     return res.status(404).send("index.html introuvable.");
@@ -20,26 +20,22 @@ app.get("/", (req, res) => {
   res.sendFile(HTML_PATH);
 });
 
-// Accès séparé au fichier HTA
+// Téléchargement manuel de file.hta
 app.get("/download", (req, res) => {
   if (!fs.existsSync(HTA_PATH)) {
     return res.status(404).send("file.hta introuvable.");
   }
 
-  res.download(HTA_PATH);
-});
-
-// Vérification de la présence du fichier
-app.get("/check", (req, res) => {
-  res.json({
-    htmlExists: fs.existsSync(HTML_PATH),
-    htaExists: fs.existsSync(HTA_PATH)
+  res.download(HTA_PATH, "file.hta", (err) => {
+    if (err && !res.headersSent) {
+      res.status(500).send("Impossible de télécharger le fichier.");
+    }
   });
 });
 
-// Vérification de l'état du serveur
+// État du serveur
 app.get("/health", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "ok",
     service: "hta-download-server",
     htmlExists: fs.existsSync(HTML_PATH),
