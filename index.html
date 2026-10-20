@@ -2,89 +2,222 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dice Verification</title>
+
 <style>
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  padding: 24px;
   background: #080b09;
-  color: #f4fff7;
+  color: #f0fff5;
   font-family: Arial, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  overflow: hidden;
 }
-.panel {
-  width: 100%;
-  max-width: 400px;
-  box-sizing: border-box;
-  padding: 36px 28px;
-  text-align: center;
-  background: #101712;
-  border: 1px solid #245b38;
-  border-radius: 18px;
-}
+
 .brand {
-  color: #9aafa0;
+  font-size: 12px;
   letter-spacing: 4px;
-  font-size: 12px;
-  font-weight: bold;
+  font-weight: 700;
+  color: #a5b9ac;
+  animation: fadeIn 1s ease both;
 }
-.arrow {
-  color: #39ff88;
-  font-size: 64px;
-  margin: 28px 0 12px;
+
+main {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
-h1 { font-size: 28px; }
-p {
-  color: #a7b5aa;
-  line-height: 1.7;
+
+.orb {
+  width: 100px;
+  height: 100px;
+  border: 1px solid rgba(53, 255, 145, .35);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  margin-bottom: 30px;
+  position: relative;
+  box-shadow: 0 0 35px rgba(53, 255, 145, .08);
+  animation: appear .8s ease both, glow 2.5s ease-in-out 1s infinite;
 }
+
+.orb::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 1px solid rgba(53, 255, 145, .15);
+  border-radius: 50%;
+  animation: rotate 8s linear infinite;
+  border-top-color: #35ff91;
+}
+
+.check {
+  color: #35ff91;
+  font-size: 48px;
+  font-weight: 300;
+  animation: checkIn .6s .5s cubic-bezier(.2,.8,.2,1) both;
+}
+
+h1 {
+  font-size: clamp(28px, 5vw, 42px);
+  margin: 0;
+  letter-spacing: -1px;
+  animation: rise .8s .25s ease both;
+}
+
+h1 span {
+  color: #35ff91;
+}
+
+.subtitle {
+  color: #aab8af;
+  font-size: 15px;
+  margin-top: 16px;
+  animation: rise .8s .45s ease both;
+}
+
 .status {
-  color: #39ff88;
-  margin: 24px 0;
-  font-size: 12px;
-  font-weight: bold;
-}
-.button {
-  display: block;
-  padding: 16px;
-  background: #39ff88;
-  color: #07120b;
-  text-decoration: none;
-  font-weight: bold;
-  border-radius: 8px;
-}
-.footer {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 30px;
+  padding: 11px 17px;
+  border: 1px solid rgba(53,255,145,.22);
+  border-radius: 5px;
+  background: rgba(53,255,145,.06);
+  color: #35ff91;
   font-size: 11px;
-  margin-top: 22px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  animation: rise .8s .7s ease both;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  background: #35ff91;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #35ff91;
+  animation: pulse 1.5s infinite;
+}
+
+.footer {
+  position: fixed;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #526158;
+  font-size: 11px;
+  letter-spacing: 1px;
+  animation: fadeIn 1.5s ease both;
+}
+
+.particle {
+  position: fixed;
+  width: 3px;
+  height: 3px;
+  background: #35ff91;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: float 5s linear infinite;
+}
+
+.p1 { left: 15%; top: 75%; animation-delay: 0s; }
+.p2 { left: 80%; top: 70%; animation-delay: 1.4s; }
+.p3 { left: 72%; top: 25%; animation-delay: 2.2s; }
+.p4 { left: 25%; top: 30%; animation-delay: 3s; }
+.p5 { left: 90%; top: 45%; animation-delay: 1s; }
+
+@keyframes appear {
+  from { opacity: 0; transform: scale(.75); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes checkIn {
+  from { opacity: 0; transform: scale(.4) rotate(-25deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 25px rgba(53,255,145,.06); }
+  50% { box-shadow: 0 0 45px rgba(53,255,145,.2); }
+}
+
+@keyframes rotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.75); }
+}
+
+@keyframes float {
+  0% { opacity: 0; transform: translateY(20px); }
+  25% { opacity: .65; }
+  75% { opacity: .35; }
+  100% { opacity: 0; transform: translateY(-100px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 </style>
 </head>
+
 <body>
-<main class="panel">
   <div class="brand">DICE VERIFICATION</div>
-  <div class="arrow">&#8593;</div>
-  <h1>Dice Verification</h1>
-  <p>
-    Welcome. Continue to your selected destination.
-  </p>
-  <div class="status">&#10003; READY TO CONTINUE</div>
 
-  <!-- Set your intended destination URL here -->
-  <a class="button"
-     href="https://example.com"
-     target="_blank"
-     rel="noopener noreferrer">
-    CONTINUE &#8594;
-  </a>
+  <div class="particle p1"></div>
+  <div class="particle p2"></div>
+  <div class="particle p3"></div>
+  <div class="particle p4"></div>
+  <div class="particle p5"></div>
 
-  <p class="footer">
-    Check the destination address before continuing.
-  </p>
-</main>
+  <main>
+    <div class="orb">
+      <div class="check">✓</div>
+    </div>
+
+    <h1>You are <span>verified.</span></h1>
+
+    <p class="subtitle">
+      Your verification is complete.
+    </p>
+
+    <div class="status">
+      <span class="dot"></span>
+      VERIFIED SUCCESSFULLY
+    </div>
+  </main>
+
+  <div class="footer">
+    DICE VERIFICATION SYSTEM
+  </div>
 </body>
 </html>
